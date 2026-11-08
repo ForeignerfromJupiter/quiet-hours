@@ -35,12 +35,16 @@ targetTemplates:
       - path: Sources/Shared
       - path: Resources/Fonts
         buildPhase: resources
+      # System Settings tile: thumbnail.png / thumbnail@2x.png (scripts/make-thumbnails.sh)
+      - path: "Resources/Thumbnails/${styleName}"
+        buildPhase: resources
     settings:
       base:
         PRODUCT_NAME: "Quiet Hours – ${styleName}"
         PRODUCT_MODULE_NAME: "QuietHours${styleName}"
         PRODUCT_BUNDLE_IDENTIFIER: "com.ashik.quiethours.${styleId}"
         QH_STYLE: "${styleId}"
+        COMBINE_HIDPI_IMAGES: NO      # ship thumbnail.png + @2x as-is, like Apple's savers
         WRAPPER_EXTENSION: saver
         INFOPLIST_FILE: Sources/Saver/Info.plist
         GENERATE_INFOPLIST_FILE: NO

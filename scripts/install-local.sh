@@ -5,12 +5,25 @@
 #   scripts/install-local.sh            build + install all five
 #   scripts/install-local.sh --open     … then open the Screen Saver settings pane
 #   scripts/install-local.sh --uninstall
+#   scripts/install-local.sh --refresh-thumbnails   … also rebuild System Settings' tile images
+#
+# macOS caches each saver's tile image the first time it sees the saver and never refreshes it,
+# even when the bundle changes. --refresh-thumbnails clears that cache (macOS rebuilds it for
+# every legacy saver) and restarts the wallpaper services. Fresh installs don't need it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$HOME/Library/Screen Savers"
 DERIVED="$ROOT/build/DerivedData"
 STYLES=(Hinge Chorus Breath Lumen Prose)
+
+refresh_thumbnails() {
+  local cache
+  cache="$(getconf DARWIN_USER_CACHE_DIR)com.apple.wallpaper.extension.legacy/com.apple.wallpaper.legacy.thumbnails"
+  [[ -d "$cache" ]] && rm -f "$cache"/*.png
+  killall "System Settings" WallpaperLegacyExtension WallpaperAgent 2>/dev/null || true
+  echo "Cleared the screen saver thumbnail cache; reopen System Settings."
+}
 
 restart_host() {
   # The host caches loaded bundles; kill it so the next start loads the new copies.
@@ -51,6 +64,7 @@ for s in "${STYLES[@]}"; do
   echo "Installed $name ($(lipo -archs "$DEST/$name/Contents/MacOS/Quiet Hours – $s"))"
 done
 restart_host
+[[ "${1:-}" == "--refresh-thumbnails" ]] && refresh_thumbnails
 echo "Pick one in System Settings → Screen Saver (under Other)."
 
 if [[ "${1:-}" == "--open" ]]; then

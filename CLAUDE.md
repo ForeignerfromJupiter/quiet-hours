@@ -34,6 +34,8 @@ open build/DerivedData/Build/Products/Debug/QuietHoursPreview.app
 xcodebuild -project QuietHours.xcodeproj -scheme Savers -configuration Release -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData build
 scripts/install-local.sh [--open | --uninstall]   # all five, Release universal → ~/Library/Screen Savers
 # System Settings caches the list: quit and reopen it to see newly installed savers.
+scripts/make-thumbnails.sh [Style]   # re-render Resources/Thumbnails/<Style>/thumbnail(@2x).png from the real renderer
+scripts/install-local.sh --refresh-thumbnails   # macOS never refreshes a cached tile image on its own
 ```
 
 Every step must build with zero errors and zero warnings (ignore the `appintentsmetadataprocessor`

@@ -112,6 +112,15 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
             saverView.timeOffset = target.timeIntervalSinceNow
         }
         saverView.logFrameStats = args.bool(forKey: "QHFrameStats")
+        // `-QHBare 1240x800`: borderless window of exactly that content size, no controls
+        // (used by scripts/make-thumbnails.sh to capture the real renderer).
+        if let bare = args.string(forKey: "QHBare")?.split(separator: "x").compactMap({ Double($0) }), bare.count == 2, let window {
+            bar.isHidden = true
+            window.styleMask = [.borderless]
+            window.hasShadow = false
+            window.setContentSize(NSSize(width: bare[0], height: bare[1]))
+            window.center()
+        }
         // `-QHScreen 1` opens the window on that display (0 = built-in on a laptop).
         if args.object(forKey: "QHScreen") != nil, let window {
             let i = args.integer(forKey: "QHScreen")
