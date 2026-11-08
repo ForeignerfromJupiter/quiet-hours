@@ -1,0 +1,53 @@
+name: Windows savers
+
+# Builds the eight Windows .scr files (windows/README.md). Only runs when the Windows port or
+# what it is built from changes, or by hand.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "windows/**"
+      - "reference/prototype.html"
+      - "Resources/Fonts/**"
+      - ".github/workflows/windows.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - "reference/prototype.html"
+      - "Resources/Fonts/**"
+      - ".github/workflows/windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Renderers match the prototype
+        shell: pwsh
+        run: |
+          python -I windows/tools/extract_prototype.py
+          git diff --exit-code -- windows/web
+          if ($LASTEXITCODE -ne 0) { throw "windows/web/*.gen.* is stale: run windows/tools/extract_prototype.py and commit." }
+
+      - name: Unit tests
+        run: dotnet test windows/tests -c Release
+
+      - name: Build the eight savers
+        shell: pwsh
+        run: windows/build.ps1
+
+      # Signing goes here once a certificate exists (windows/README.md → Code signing).
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quiet-hours-windows
+          path: windows/dist/
+          if-no-files-found: error

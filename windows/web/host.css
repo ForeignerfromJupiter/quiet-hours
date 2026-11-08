@@ -1,0 +1,33 @@
+/* Quiet Hours for Windows: page frame around the prototype's style CSS (styles.gen.css). */
+
+/* Bundled OFL fonts (Resources/Fonts), served by the host from the .scr's embedded resources.
+   The ranges let both font-variation-settings and canvas fontStretch reach Anybody's axes. */
+@font-face{font-family:"Anybody";src:url("fonts/Anybody-Variable.ttf") format("truetype");font-weight:100 900;font-stretch:50% 150%;font-display:block}
+@font-face{font-family:"Instrument Serif";src:url("fonts/InstrumentSerif-Regular.ttf") format("truetype");font-style:normal;font-display:block}
+@font-face{font-family:"Instrument Serif";src:url("fonts/InstrumentSerif-Italic.ttf") format("truetype");font-style:italic;font-display:block}
+/* Labels: the prototype asks for Geist Mono (not bundled); alias it to the system mono. */
+@font-face{font-family:"Geist Mono";src:local("Cascadia Mono"),local("CascadiaMono-Regular"),local("Consolas"),local("SF Mono"),local("Menlo")}
+
+:root{
+  --f-display:"Anybody","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"Geist Mono","Cascadia Mono",Consolas,monospace;
+  --f-serif:"Instrument Serif",Georgia,serif;
+}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;overflow:hidden;background:#000;-webkit-font-smoothing:antialiased;user-select:none}
+*{cursor:none!important}
+
+/* #stage carries the burn-in translate; #screen is the prototype's .screen (cqw = 1% of width). */
+#stage{position:fixed;inset:0}
+#screen{position:absolute;inset:0;overflow:visible;container-type:inline-size}
+
+/* Burn-in shift: every room is oversized by 16px (Room.shiftMargin) so a moved clock never
+   uncovers an edge. Canvas styles: a bigger canvas. DOM styles: a transparent border, so their
+   content box (and the layout inside it) stays exactly the window. */
+.qh-shift .fill{left:-16px;top:-16px;width:calc(100% + 32px);height:calc(100% + 32px)}
+.qh-shift .hinge,.qh-shift .breath,.qh-shift .prose{inset:-16px;border:16px solid transparent;background-origin:border-box}
+
+/* Pure black (default on): a dark finish's room is #000 throughout. */
+.qh-pure .hinge:not([data-v="ivory"]),
+.qh-pure .breath:not([data-v="paper"]),
+.qh-pure .prose:not([data-v="paper"]){--bgA:#000;--bgB:#000}

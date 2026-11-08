@@ -1,0 +1,3 @@
+# Generated from reference/prototype.html with LF endings; keep them LF on Windows checkouts
+# so CI's "is it up to date?" diff is byte-exact.
+web/*.gen.* text eol=lf

@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One project, built once per style:  dotnet build -c Release -p:QHStyle=Chorus
+    Output: "Quiet Hours - Chorus.exe", renamed to .scr by windows/build.ps1.
+
+    .NET Framework 4.8 because it ships with Windows 10 (1903+) and 11: the .scr is a single
+    ~1 MB file with no runtime to install. Everything it needs (web page, fonts, the WebView2
+    managed DLL and native loaders) is embedded, so it still works when copied alone into
+    C:\Windows\System32.
+  -->
+
+  <PropertyGroup>
+    <QHStyle Condition="'$(QHStyle)' == ''">Hinge</QHStyle>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AssemblyName>Quiet Hours - $(QHStyle)</AssemblyName>
+    <RootNamespace>QuietHours.Windows</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="Exists('QuietHours.ico')">QuietHours.ico</ApplicationIcon>
+    <Product>Quiet Hours</Product>
+    <AssemblyTitle>Quiet Hours - $(QHStyle)</AssemblyTitle>
+    <Description>Quiet Hours - $(QHStyle) screen saver</Description>
+    <Company>Quiet Hours</Company>
+    <Copyright>MIT License</Copyright>
+    <Version>0.1.0</Version>
+    <!-- Separate obj/bin per style so the eight builds never share incremental state. -->
+    <IntermediateOutputPath>obj\$(Configuration)\$(QHStyle)\</IntermediateOutputPath>
+    <OutputPath>bin\$(Configuration)\$(QHStyle)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="QHStyle" Value="$(QHStyle)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" GeneratePathProperty="true" />
+    <!-- Lets the project build without the .NET Framework targeting pack (e.g. on macOS for a compile check). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- The page and the bundled fonts, served to WebView2 from memory (WebAssets.cs). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\web\*.html;..\web\*.js;..\web\*.css">
+      <LogicalName>web/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\Resources\Fonts\*.ttf">
+      <LogicalName>web/fonts/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
+    Embed WebView2's managed Core DLL and the native WebView2Loader.dll for each architecture.
+    Program.cs loads the managed one from memory and extracts the loader to %LOCALAPPDATA%.
+  -->
+  <Target Name="QHEmbedWebView2" AfterTargets="ResolveAssemblyReferences" BeforeTargets="PrepareResources">
+    <ItemGroup>
+      <_QHCore Include="@(ReferencePath)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Core'" />
+      <_QHLoader Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" Arch="x64" />
+      <_QHLoader Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x86\native\WebView2Loader.dll" Arch="x86" />
+      <_QHLoader Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-arm64\native\WebView2Loader.dll" Arch="arm64" />
+    </ItemGroup>
+    <Error Condition="'@(_QHCore)' == ''" Text="Microsoft.Web.WebView2.Core.dll was not among the resolved references." />
+    <Error Condition="!Exists('%(_QHLoader.Identity)')" Text="WebView2Loader.dll not found: %(_QHLoader.Identity)" />
+    <ItemGroup>
+      <EmbeddedResource Include="@(_QHCore)" LogicalName="lib/Microsoft.Web.WebView2.Core.dll" WithCulture="false" Type="Non-Resx" />
+      <EmbeddedResource Include="@(_QHLoader)" LogicalName="native/%(_QHLoader.Arch)/WebView2Loader.dll" WithCulture="false" Type="Non-Resx" />
+    </ItemGroup>
+  </Target>
+
+</Project>
