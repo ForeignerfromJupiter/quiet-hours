@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds the five Quiet Hours savers (Release, universal) and installs them into
+# Builds the Quiet Hours savers (Release, universal) and installs them into
 # ~/Library/Screen Savers, one tile per style in System Settings → Screen Saver.
 #
-#   scripts/install-local.sh            build + install all five
+#   scripts/install-local.sh            build + install all of them
 #   scripts/install-local.sh --open     … then open the Screen Saver settings pane
 #   scripts/install-local.sh --uninstall
 #   scripts/install-local.sh --refresh-thumbnails   … also rebuild System Settings' tile images
@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$HOME/Library/Screen Savers"
 DERIVED="$ROOT/build/DerivedData"
-STYLES=(Hinge Chorus Breath Lumen Prose)
+STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module)
 
 refresh_thumbnails() {
   local cache

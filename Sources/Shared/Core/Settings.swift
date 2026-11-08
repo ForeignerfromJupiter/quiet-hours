@@ -1,7 +1,7 @@
 import Foundation
 
 enum StyleID: String, CaseIterable {
-    case hinge, chorus, breath, lumen, prose
+    case hinge, chorus, breath, lumen, prose, slice, poster, module
 
     var displayName: String {
         switch self {
@@ -10,6 +10,9 @@ enum StyleID: String, CaseIterable {
         case .breath: return "Breath"
         case .lumen: return "Lumen"
         case .prose: return "Prose"
+        case .slice: return "Slice"
+        case .poster: return "Poster"
+        case .module: return "Module"
         }
     }
 
@@ -23,7 +26,7 @@ enum StyleID: String, CaseIterable {
         case .chorus: return ("Night", "Paper")
         case .breath: return ("Graphite", "Paper")
         case .lumen: return ("Night", "Paper")
-        case .prose: return ("Night", "Paper")
+        case .prose, .slice, .poster, .module: return ("Night", "Paper")
         }
     }
 }

@@ -67,6 +67,15 @@ targets:
   QuietHoursProse:
     templates: [Saver]
     templateAttributes: { styleId: prose, styleName: Prose }
+  QuietHoursSlice:
+    templates: [Saver]
+    templateAttributes: { styleId: slice, styleName: Slice }
+  QuietHoursPoster:
+    templates: [Saver]
+    templateAttributes: { styleId: poster, styleName: Poster }
+  QuietHoursModule:
+    templates: [Saver]
+    templateAttributes: { styleId: module, styleName: Module }
 
   # Plain app that hosts the same view in a resizable window. Day-to-day iteration happens here.
   QuietHoursPreview:
@@ -101,7 +110,7 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
 
 schemes:
-  # Builds all five savers.
+  # Builds every saver.
   Savers:
     build:
       targets:
@@ -110,6 +119,9 @@ schemes:
         QuietHoursBreath: all
         QuietHoursLumen: all
         QuietHoursProse: all
+        QuietHoursSlice: all
+        QuietHoursPoster: all
+        QuietHoursModule: all
   QuietHoursPreview:
     build:
       targets:

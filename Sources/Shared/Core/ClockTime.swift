@@ -9,14 +9,17 @@ enum HourCycle: String, CaseIterable {
 
 /// A snapshot of the wall clock, already split into the digits the styles draw.
 /// Pure value type: no UI, so it is unit-tested directly.
-struct ClockTime: Equatable {
+struct ClockTime {
     let hour24: Int
     let minute: Int
     let second: Int
     let millisecond: Int
     let uses24Hour: Bool
+    /// The full date (Poster's weekday/date caption). Defaults to now for hand-built times.
+    let date: Date
 
-    init(hour24: Int, minute: Int, second: Int, millisecond: Int = 0, uses24Hour: Bool) {
+    init(hour24: Int, minute: Int, second: Int, millisecond: Int = 0, uses24Hour: Bool, date: Date = Date()) {
+        self.date = date
         self.hour24 = hour24
         self.minute = minute
         self.second = second
@@ -30,7 +33,8 @@ struct ClockTime: Equatable {
                   minute: c.minute ?? 0,
                   second: c.second ?? 0,
                   millisecond: (c.nanosecond ?? 0) / 1_000_000,
-                  uses24Hour: uses24Hour)
+                  uses24Hour: uses24Hour,
+                  date: date)
     }
 
     var isPM: Bool { hour24 >= 12 }

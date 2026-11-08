@@ -3,8 +3,9 @@
 A free, open source macOS screensaver with calm clock styles. It follows your Mac's light or
 dark mode and your 12/24-hour setting automatically.
 
-**Status:** early development. All five styles work: Hinge (split-flap), Chorus (24 clocks),
-Breath (variable type), Lumen (points of light) and Prose (the time as a sentence).
+**Status:** early development. All eight styles work: Hinge (split-flap), Chorus (24 clocks),
+Breath (variable type), Lumen (points of light), Prose (the time as a sentence), Slice (ribboned
+numerals), Poster (Swiss poster type) and Module (Bauhaus tiles).
 Signed releases will be published on GitHub Releases.
 
 ## Install from source
@@ -16,8 +17,8 @@ with Homebrew if it's missing).
 scripts/install-local.sh --open
 ```
 
-This installs five savers, one per style. Pick **Quiet Hours – Hinge**, **– Chorus**, **– Breath**,
-**– Lumen** or **– Prose** in System Settings → Screen Saver (under Other; quit and reopen System
+This installs eight savers, one per style. Pick **Quiet Hours – Hinge**, **– Chorus**, **– Breath**,
+**– Lumen**, **– Prose**, **– Slice**, **– Poster** or **– Module** in System Settings → Screen Saver (under Other; quit and reopen System
 Settings if they don't show up yet). **Options…** sets the finish (Auto follows light/dark mode),
 12/24-hour time and seconds. To remove them all:
 

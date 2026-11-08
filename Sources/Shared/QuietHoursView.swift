@@ -324,6 +324,15 @@ final class QuietHoursView: ScreenSaverView {
         tick(CACurrentMediaTime())   // an idle style wakes now, not at the next second
     }
 
+    /// Jumps to 40 ms past the next full hour (Poster re-composes every hour).
+    func skipToNextHour() {
+        let now = Date().addingTimeInterval(timeOffset)
+        let c = calendar.dateComponents([.minute, .second, .nanosecond], from: now)
+        let intoHour = Double(c.minute ?? 0) * 60 + Double(c.second ?? 0) + Double(c.nanosecond ?? 0) / 1e9
+        timeOffset += 3600 - intoHour + 0.04
+        tick(CACurrentMediaTime())
+    }
+
     func backToLive() {
         timeOffset = 0
         tick(CACurrentMediaTime())

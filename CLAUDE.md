@@ -1,8 +1,8 @@
 # Quiet Hours
 
-Open source macOS screensaver with five clock styles (Hinge, Chorus, Breath, Lumen, Prose).
-**The product is five `.saver` bundles, one per style:** `Quiet Hours – Hinge.saver`, `– Chorus`,
-`– Breath`, `– Lumen`, `– Prose`. Each is its own tile in System Settings → Screen Saver; users
+Open source macOS screensaver with eight clock styles (Hinge, Chorus, Breath, Lumen, Prose, Slice, Poster, Module).
+**The product is eight `.saver` bundles, one per style:** `Quiet Hours – Hinge.saver`, `– Chorus`,
+`– Breath`, `– Lumen`, `– Prose`, `– Slice`, `– Poster`, `– Module`. Each is its own tile in System Settings → Screen Saver; users
 pick a style there, not in Options. All five build from the same sources (an XcodeGen target
 template). Each bundle is its own Swift module (`QuietHoursHinge`, …) so their classes never clash
 when the host loads several into one process; never give a class a fixed `@objc(Name)`. The
@@ -14,10 +14,10 @@ Specs: `docs/PRD.md` (product) and `reference/prototype.html` (visual and motion
 truth: timings, easing curves, sizes and colors must match or beat it). Ideas for later phases:
 `docs/NOTES.md`.
 
-Status: Phases 1–5 done: all five styles run natively (Breath, Chorus and Lumen are first-pass
+Status: Phases 1–8 done: all eight styles run natively (Breath, Chorus and Lumen are first-pass
 ports). A simple Options sheet (style, finish, time format, seconds) works in System Settings.
-Still to do: Lumen's "push further" round, and Phase 6 (full Options panel with live preview,
-displays and dim; thumbnails; signing, notarization and release).
+Still to do: Lumen's "push further" round, and Phase 9 (full Options panel with live preview,
+displays and dim; signing, notarization and release).
 
 Deliberate departures from the prototype (owner's calls): dark finishes use deeper blacks (rooms
 go to #000); Hinge sizes the visible row to fill ~94% of the width (height-capped at 70%), so a
@@ -45,7 +45,8 @@ Preview debug launch arguments: `-QHTimeScale 10` (slow motion, all styles), `-Q
 (next minute change lands 2 s after launch; `-QHFlipIn 30` lands on :30 for Chorus patterns),
 `-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline), `-QHTime 20:07:57`
 (start the clock at that time), `-QHFrameStats YES` (logs frame pacing after each burst of
-animation), `-QHFullScreen YES`, `-QHScreen 1` (open on that display). Serve `reference/` with the `reference` entry in
+animation), `-QHFullScreen YES`, `-QHScreen 1` (open on that display), `-QHBare 1240x800` (borderless,
+no controls; used for thumbnails). The window also has a "Next hour" button (Poster layouts). Serve `reference/` with the `reference` entry in
 `.claude/launch.json` (http://localhost:8765) to view the prototype and ideas page live.
 Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
@@ -75,6 +76,14 @@ Sources/Shared/             compiled into both the saver and the preview app
                             (shaders compiled at runtime from a string: no Metal toolchain needed)
   Styles/Prose/             ProseSentence (pure sentence builder + word diff), ProseLayout
                             (Core Text shaping, balanced lines), ProseRenderer (one layer per glyph)
+  Styles/Common/R3Look.swift  shared palette, expo/back easings, background + corner label for
+                            Slice, Poster and Module
+  Styles/Slice/             SliceRenderer: cached digit images (ink + accent) shown through 14
+                            clipped ribbon layers each (clip → skew → old/ghosts/new/accent)
+  Styles/Poster/            PosterRenderer + PosterLayout: XOR knockout as ONE even-odd CAShapeLayer
+                            path (numbers unioned with CGPath.normalized), accent = same path masked to the disc
+  Styles/Module/            ModuleRenderer + ModuleGlyphs (PRD patterns as data): per-corner-radius
+                            CAShapeLayer tiles, dot grid via CAReplicatorLayer, idle between morphs
 Sources/Saver/Info.plist    NSPrincipalClass = QuietHoursView
 Sources/Preview/            preview harness (window, controls)
 Resources/Fonts/            Anybody-Variable.ttf, InstrumentSerif-Regular/Italic.ttf + OFL licenses (both targets)

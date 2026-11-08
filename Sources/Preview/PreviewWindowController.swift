@@ -12,6 +12,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
     private let hourControl = NSSegmentedControl(labels: ["System", "12h", "24h"], trackingMode: .selectOne, target: nil, action: nil)
     private let secondsCheck = NSButton(checkboxWithTitle: "Seconds", target: nil, action: nil)
     private let nextMinuteButton = NSButton(title: "Next minute", target: nil, action: nil)
+    private let nextHourButton = NSButton(title: "Next hour", target: nil, action: nil)
     private let liveButton = NSButton(title: "Back to live", target: nil, action: nil)
     private let slowCheck = NSButton(checkboxWithTitle: "Slow ×10", target: nil, action: nil)
     private let cvCheck = NSButton(checkboxWithTitle: "CVDisplayLink", target: nil, action: nil)
@@ -54,6 +55,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
                                   (hourControl, #selector(settingsChanged)),
                                   (secondsCheck, #selector(settingsChanged)),
                                   (nextMinuteButton, #selector(nextMinute)),
+                                  (nextHourButton, #selector(nextHour)),
                                   (liveButton, #selector(backToLive)),
                                   (slowCheck, #selector(debugChanged)),
                                   (cvCheck, #selector(debugChanged))] {
@@ -75,7 +77,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         bar.orientation = .horizontal
         bar.spacing = 10
         bar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        for v in [stylePopup, finishControl, hourControl, secondsCheck, nextMinuteButton, liveButton,
+        for v in [stylePopup, finishControl, hourControl, secondsCheck, nextMinuteButton, nextHourButton, liveButton,
                   slowCheck, cvCheck, spacer, status] as [NSView] {
             bar.addArrangedSubview(v)
         }
@@ -167,6 +169,11 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
 
     @objc private func nextMinute() {
         saverView.skipToNextMinute()
+        updateStatus()
+    }
+
+    @objc private func nextHour() {
+        saverView.skipToNextHour()
         updateStatus()
     }
 

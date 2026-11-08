@@ -2,15 +2,15 @@
 
 Nov 8, 2026 · @Ashik
 
-Quiet Hours is a free, open source macOS screensaver with five clock styles: Hinge, Chorus, Breath, Lumen and Prose. It ships as five signed and notarized savers, one per style ("Quiet Hours – Hinge" and so on), in one download on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
+Quiet Hours is a free, open source macOS screensaver with eight clock styles: Hinge, Chorus, Breath, Lumen, Prose, Slice, Poster and Module. It ships as eight signed and notarized savers, one per style ("Quiet Hours – Hinge" and so on), in one download on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
 
 ## Goals and non-goals
 
 **Goals**
 
-1. Five clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
+1. Eight clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
 2. Every style follows macOS light or dark mode by default, with a manual override.
-3. One download from GitHub Releases holding five `.saver` files, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
+3. One download from GitHub Releases holding eight `.saver` files, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
 4. Runs on Apple Silicon and Intel Macs, macOS 12 Monterey and later.
 5. Quiet on resources: under 10% of one CPU core on an M-series Mac at 60 fps, no memory growth over an 8-hour run.
 6. Clean open source repo: MIT license, README with GIFs, one-command build.
@@ -95,6 +95,61 @@ The time as one sentence, set large like a page of a book.
 | 12:30 | It's half past *twelve* in the afternoon. |
 | 11:35 | It's twenty-five to *noon*. |
 
+### Shared look for Slice, Poster and Module
+
+These three share one palette and one accent. Night: radial background from #17171b to #08080a, ink #efebe2, accent amber #f0b35e. Paper: radial background from #f3f0e9 to #ddd7cb, ink #161514, accent ink blue #2b4c7e. Numerals use Anybody at weight 800.
+
+### Slice
+
+Heavy numerals built from horizontal ribbons. The slicing is visible at rest, not only during the change.
+
+- Size: numeral size is the smaller of 60% of screen height and whatever fits the time in 86% of screen width. Each digit cell is 0.72 x the numeral size, with 0.04 between digits and 0.3 for the colon. In 12h mode a leading blank digit is removed and the rest re-centres.
+- Ribbons: each digit is cut into 14 horizontal ribbons with a hairline gap of 0.75% of the numeral size (at least 1 px), masked to the digit's own cell.
+- Sway: at rest each ribbon drifts sideways by up to 1.1% of the numeral size on a sine wave (about 4.2 s period), phase-shifted per ribbon and per digit so a slow wave runs through the numerals.
+- Seconds: over each minute one ribbon at a time steps out by 5% of the numeral size and turns accent, moving from the top ribbon to the bottom (about 4.3 s per ribbon) with a smooth in-and-out.
+- Change: ribbons shear apart from the centre ribbon outward (34 ms delay per ribbon from the centre), in alternating directions, travelling 1.2 digit widths over 760 ms with exponential in-out easing. While moving, a ribbon slants by up to 0.4 skew in proportion to its speed, trails four fading ghost copies, and is tinted accent by its speed, cooling to ink as it lands. When several digits change, each starts 130 ms after the one to its left.
+- Colon: two squares, each cut into three ribbons, blinking at full opacity for half a second and 30% for the other half.
+
+### Poster
+
+Hours and minutes set enormous and cropped off the page, cutting through each other and one accent disc, like a Swiss International Style poster.
+
+- Composition: hours, minutes and the disc are drawn into one layer combined with XOR, so wherever two shapes overlap they knock out to the background.
+- Type: Anybody 800, condensed, at about 104% of screen height (the stacked layout uses 88%).
+- Layouts: three compositions, chosen by the hour modulo 3, so the poster re-composes every hour.
+
+| Layout | Hours | Minutes | Disc | Captions |
+| --- | --- | --- | --- | --- |
+| 0 | Left-aligned at x -3.5%, baseline 79% | Right-aligned at x 103%, baseline 113% | Centre (80%, 27%), radius 13% of height | Top right |
+| 1 | Right-aligned at x 103.5%, baseline 74% | Left-aligned at x -3%, baseline 114% | Centre (16%, 22%), radius 12% | Bottom right |
+| 2 | Centred, baseline 60%, size 88% | Centred, baseline 113%, size 88% | Centre (88%, 52%), radius 9% | Bottom left |
+
+- Drift: hours drift sideways by up to 0.8% of width (about 2.4 min period), minutes by 0.8% on a different period, and the disc vertically by 2% of height.
+- Minute change: old minutes slide up by one screen height while new minutes rise from below, 1.1 s, exponential in-out.
+- Hour change: over 1.5 s, the old hours exit left, old minutes exit down and the old disc shrinks; new hours enter from the right, new minutes rise from below, and the new disc pops in with overshoot starting a third of the way through. Captions fade across.
+- Details: a faint six-column grid (ink at 5%); two letter-spaced mono caption lines in the layout's free corner (the weekday and date, then "QUIET HOURS / NO. 20" with AM/PM and optional seconds); an accent seconds bar along the bottom edge, 0.4% of height tall, filling across the minute.
+
+### Module
+
+Numerals built on a 3 x 5 grid of tiles from squares and quarter circles, Bauhaus style.
+
+- Tiles: each tile is a rounded rectangle with per-corner radii. Straight tiles have no rounding; a curve tile has one corner rounded at the full tile size, which makes a quarter circle. Empty tiles have scale 0. Tiles have a gap of 5% of the tile size.
+- Colour: straight tiles are ink and curve tiles are accent, with the colour blending in step with the corner radius during a morph.
+- Size: tile size is the smaller of 82% of width divided by the layout's width in tiles and 60% of height divided by 5. Digits are 3 tiles wide with 0.7 tiles between them; the colon takes 2.2 tiles.
+- Change: every tile tweens to its new shape over 820 ms, scale with overshoot and corner radii with exponential easing, staggered by (row + column) x 55 ms so the change runs as a diagonal wave.
+- Colon: two accent discs that pulse to 85% size every half second.
+- Seconds: 30 short dashes under the digits fill with accent across the minute.
+- Background: a faint dot grid at 7% ink, aligned to the tile grid.
+- Digit patterns (rows top to bottom; `#` square, `.` empty, `a` rounded top-left, `b` rounded top-right, `c` rounded bottom-right, `d` rounded bottom-left):
+
+```text
+0 a#b #.# #.# #.# d#c      5 ### #.. ##b ..# ##c
+1 a#. .#. .#. .#. ###      6 a## #.. ##b #.# d#c
+2 a#b ..# a#c #.. ###      7 ### ..# ..# ..# ..#
+3 ##b ..# .## ..# ##c      8 a#b #.# ### #.# d#c
+4 #.# #.# d## ..# ..#      9 a#b #.# d## ..# ##c
+```
+
 ## Appearance and options
 
 Every style defaults to **Auto**: it shows its dark finish when macOS is in dark mode and its light finish in light mode, and switches live if the mode changes while the saver runs. The user can pin a finish per style instead.
@@ -106,6 +161,9 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 | Breath | Graphite: warm white on graphite | Paper: near-black on warm paper |
 | Lumen | Night: warm white light points, additive glow | Paper: graphite points on paper |
 | Prose | Night: warm white serif on graphite | Paper: near-black serif on warm paper |
+| Slice | Night: warm white ribbons, amber accent | Paper: near-black ribbons, ink blue accent |
+| Poster | Night: warm white type, amber disc | Paper: near-black type, ink blue disc |
+| Module | Night: warm white squares, amber curves | Paper: near-black squares, ink blue curves |
 
 **Options panel** (the saver's Options button in System Settings, `configureSheet`)
 
@@ -122,7 +180,7 @@ The panel shows a small live preview of the chosen style and finish. Settings ar
 
 ## Technical approach
 
-One `ScreenSaverView` subclass hosts the style. The five savers are built from the same sources; each bundle is its own Swift module (so their classes never clash when the host loads several into one process) and names its style in its Info.plist. Each style is a self-contained renderer behind one small protocol, so styles can be built and tuned one at a time.
+One `ScreenSaverView` subclass hosts the style. The savers are built from the same sources; each bundle is its own Swift module (so their classes never clash when the host loads several into one process) and names its style in its Info.plist. Each style is a self-contained renderer behind one small protocol, so styles can be built and tuned one at a time.
 
 **Stack:** Swift, ScreenSaver framework, Core Animation, Core Text, Metal. Deployment target macOS 12, universal binary (arm64 + x86\_64). Project generated with XcodeGen so it's reproducible from the repo. No third-party dependencies.
 
@@ -153,7 +211,7 @@ Verify each workaround on the current macOS before relying on it; the host's beh
 
 Releases go out on GitHub, signed with Ashik's Developer ID and notarized by Apple, so a downloaded copy opens with no warning on any supported Mac.
 
-1. **Sign** each of the five `.saver` bundles with a *Developer ID Application* certificate, hardened runtime on, secure timestamp.
+1. **Sign** each `.saver` bundle with a *Developer ID Application* certificate, hardened runtime on, secure timestamp.
 2. **Package** them in one `.dmg` with a short "double-click the ones you want" note, and sign the DMG.
 3. **Notarize** the DMG with `notarytool` using an App Store Connect API key, then **staple** the ticket to the DMG (and to each `.saver` too, if `stapler` accepts it) so it validates offline.
 4. **Publish** the DMG and a checksum to a GitHub Release.
@@ -179,6 +237,7 @@ Releases go out on GitHub, signed with Ashik's Developer ID and notarized by App
 | Variable-font rendering cost in Breath | Stutter when redrawing every frame | Cache glyph paths per weight step if needed | Awareness |
 | Signing secrets in CI | Leaked certificate | Repository secrets only, temporary keychain in the workflow | Action: set up secrets in Phase 5 |
 | Lumen direction still open | Weakest style at launch | Built last, treated as an exploration; can ship in v1.1 if not ready | Awareness |
+| Poster's XOR knockout has no direct Core Animation equivalent | Overlaps render wrong or slowly | Render the type layer with Core Graphics using the XOR blend mode (or Metal), cached per minute and only re-rendered during drift and transitions | Action: prove it in the first step of Phase 7 |
 
 ## Milestones
 
@@ -190,9 +249,15 @@ Releases go out on GitHub, signed with Ashik's Developer ID and notarized by App
    - Exit: every digit 0 to 9 reads clearly; patterns run at :27 to :36 and return cleanly.
 4. **Phase 4: Lumen.** Particle field on Metal, scatter and re-form, trails, both finishes, then one round of pushing the design further.
    - Exit: under 10% CPU on Apple Silicon at 60 fps; Ashik signs off on the look.
-5. **Phase 5: Prose.** Sentence builder with unit tests against the table above, bundled Instrument Serif, word-level rewrite animation, caret, caption, both finishes.
-   - Exit: every row of the Prose table renders exactly; only changed words animate; no layout jump beyond the line reflow.
-6. **Phase 6: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, v1.0 release.
+5. **Phase 5: Prose.** Sentence builder with unit tests against the Prose table, bundled Instrument Serif, word-level rewrite animation, caret, caption, both finishes.
+   - Exit: every row of the Prose table renders exactly; only changed words animate.
+6. **Phase 6: Slice.** Ribbon rendering, sway, seconds ribbon, centre-out shear with skew, ghosts and accent tint, sliced colon.
+   - Exit: every digit change matches the prototype side by side; 60 fps full screen.
+7. **Phase 7: Poster.** XOR type layer, three hourly layouts, drift, minute and hour transitions, grid, captions, seconds bar.
+   - Exit: all three layouts verified with a "next hour" control; overlaps knock out cleanly with no flicker.
+8. **Phase 8: Module.** Tile renderer with per-corner radii, digit patterns, diagonal morph wave, accent colon, seconds dashes, dot grid.
+   - Exit: digits 0 to 9 read clearly; every change morphs tile by tile with no pops.
+9. **Phase 9: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, v1.0 release.
    - Exit: a fresh download from GitHub installs with no Gatekeeper warning on a second Mac.
 
 ## Claude Code kickoff prompt
@@ -252,3 +317,42 @@ Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 4 are done
 
 Plan first and wait for my OK. Build in small steps, building with xcodebuild after each. Finish with a test checklist against the Phase 5 exit criteria and a git commit.
 ```
+
+**Slice phase prompt** (when Phases 1 to 5 are done):
+
+```text
+Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 5 are done. Build Phase 6: the Slice style.
+
+- Match the PRD's Slice spec and the prototype's Slice exactly: sizing that fits 12h and 24h, 14 ribbons with hairline gaps, idle sway, the seconds ribbon stepping down across the minute, the centre-out shear with alternating directions, speed skew, four trailing ghosts, speed-based accent tint, 130 ms digit stagger, and the sliced blinking colon.
+- Render each digit once per change into a cached image (one ink, one accent), then draw ribbons as clipped slices of those images, on Core Animation layers or Metal, whichever holds 60 fps full screen.
+- Night and Paper finishes via Auto appearance, using the shared palette in the PRD.
+
+Plan first and wait for my OK. Build in small steps with xcodebuild after each. Finish with a test checklist against the Phase 6 exit criteria and a git commit.
+```
+
+**Poster phase prompt** (when Phase 6 is done):
+
+```text
+Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 6 are done. Build Phase 7: the Poster style.
+
+- First, prove the XOR knockout natively: hours, minutes and the accent disc combined so overlaps cut out to the background, rendered with Core Graphics XOR blending (or Metal). Show me that before building the rest.
+- Then match the PRD's Poster spec and the prototype: the three hourly layouts from the layout table, drift, the minute slide-up, the 1.5 s hour re-composition with the disc popping in, the six-column grid, captions in each layout's free corner, and the accent seconds bar.
+- Add a "Next hour" control to the PreviewApp so all three layouts can be checked quickly.
+- Night and Paper finishes via Auto appearance.
+
+Plan first and wait for my OK. Build in small steps with xcodebuild after each. Finish with a test checklist against the Phase 7 exit criteria and a git commit.
+```
+
+**Module phase prompt** (when Phase 7 is done):
+
+```text
+Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 7 are done. Build Phase 8: the Module style.
+
+- Encode the digit patterns from the PRD as data and unit-test that each digit maps to the expected 15 tiles.
+- Each tile is a rounded rectangle with per-corner radii and a scale. A change tweens scale (with overshoot) and radii (exponential) over 820 ms, staggered by (row + column) x 55 ms. Colour blends from ink to accent with the corner radius.
+- Match the prototype: tile gap, sizing for 12h and 24h, accent colon discs pulsing, 30 seconds dashes, faint dot grid.
+- Night and Paper finishes via Auto appearance.
+
+Plan first and wait for my OK. Build in small steps with xcodebuild after each. Finish with a test checklist against the Phase 8 exit criteria and a git commit.
+```
+

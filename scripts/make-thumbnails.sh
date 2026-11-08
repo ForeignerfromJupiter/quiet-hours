@@ -21,13 +21,16 @@ DOMAIN=com.ashik.quiethours.preview
 WORK="$(mktemp -d)"
 trap 'pkill -x QuietHoursPreview 2>/dev/null || true; rm -rf "$WORK"' EXIT
 
-# Style | clock time shown | seconds to wait for the style to settle
+# Style | clock time shown | seconds to wait for the style to settle | framing (frame or bleed)
 SHOTS=(
   "Hinge 10:10:00 2.5"
   "Chorus 10:10:03 6"
   "Breath 10:10:40 3"
   "Lumen 10:10:00 6"
   "Prose 22:00:00 2.5"
+  "Slice 10:10:20 3"
+  "Poster 09:41:20 3 bleed"
+  "Module 10:10:20 3"
 )
 
 cd "$ROOT"
@@ -54,7 +57,7 @@ defaults -currentHost write "$DOMAIN" hourCycle h12
 defaults -currentHost write "$DOMAIN" showSeconds -bool NO
 
 for shot in "${SHOTS[@]}"; do
-  read -r name time wait <<<"$shot"
+  read -r name time wait framing <<<"$shot"
   if [[ $# -gt 0 && "$1" != "$name" ]]; then continue; fi
   style="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
   defaults -currentHost write "$DOMAIN" style "$style"
@@ -72,7 +75,13 @@ for shot in "${SHOTS[@]}"; do
   mkdir -p "$out"
   # The tile trims a few percent off each side and Hinge/Chorus fill ~94% of the width, so frame
   # the capture at 90% on black with a soft edge (scripts/thumbnail-frame.swift).
-  "$WORK/frame" "$WORK/$name.png" "$out/thumbnail@2x.png" 360 232
-  "$WORK/frame" "$WORK/$name.png" "$out/thumbnail.png" 180 116
+  # Poster bleeds off the page by design, so it stays full-bleed.
+  if [[ "${framing:-frame}" == bleed ]]; then
+    sips -s format png -z 232 360 "$WORK/$name.png" --out "$out/thumbnail@2x.png" >/dev/null
+    sips -s format png -z 116 180 "$WORK/$name.png" --out "$out/thumbnail.png" >/dev/null
+  else
+    "$WORK/frame" "$WORK/$name.png" "$out/thumbnail@2x.png" 360 232
+    "$WORK/frame" "$WORK/$name.png" "$out/thumbnail.png" 180 116
+  fi
   echo "$name: $out/thumbnail.png, thumbnail@2x.png"
 done
