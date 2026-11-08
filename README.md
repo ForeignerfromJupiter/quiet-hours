@@ -11,7 +11,7 @@ numerals), Poster (Swiss poster type) and Module (Bauhaus tiles).
 
 ## Download and install
 
-1. Download **QuietHours.zip** from the [latest release](../../releases/latest) and open it.
+1. Download **QuietHours-<version>.zip** from the [latest release](../../releases/latest) and open it.
 2. Double-click the screensaver you want, for example **Quiet Hours – Hinge.saver**, and choose
    whether to install it for you or for all users.
 3. Pick it in **System Settings → Screen Saver** (under "Other"). Each style is its own tile, so
