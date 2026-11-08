@@ -49,7 +49,12 @@ final class SliceRenderer: ClockStyle {
     private var size: CGFloat = 0          // numeral size S
     private var top: CGFloat = 0
     private var layoutKey = ""
-    private var cache: [String: CGImage] = [:]
+    /// A digit image cropped to its ink, and where that crop sits in the 0.72 S × 1.02 S cell.
+    private struct Glyph { let image: CGImage; let rect: CGRect }
+    /// Only the digits on screen are kept (pruned after every change), so memory stays at a
+    /// handful of cropped images instead of every digit ever shown.
+    private var cache: [String: Glyph] = [:]
+    private var usedThisFrame = Set<String>()
     private var speed: Double { max(context.timeScale, 0.01) }
 
     init(context: StyleContext) {
@@ -103,6 +108,7 @@ final class SliceRenderer: ClockStyle {
         let scanB = Int(scanF.rounded(.down))
         let bump = sin((scanF - Double(scanB)) * .pi)
 
+        usedThisFrame.removeAll(keepingCapacity: true)
         for (j, i) in visible.enumerated() {
             let s = slots[i]
             let ink = glyph(s.ch, accent: false), acc = glyph(s.ch, accent: true)
@@ -112,16 +118,16 @@ final class SliceRenderer: ClockStyle {
                 let by = top + CGFloat(b) * bh
                 let localY = top - by                      // image top in ribbon coordinates
                 let base = 0.06 * S                         // clip starts 0.06 S left of the cell
-                setContents(r.new, ink); setContents(r.accent, acc)
+                setContents(r.new, ink?.image); setContents(r.accent, acc?.image)
                 if !anim {
                     let io = reduce ? 0 : 0.011 * S * CGFloat(sin(T * 1.5 - Double(b) * 0.5 - Double(j) * 0.9))
                         + (b == scanB ? 0.05 * S * CGFloat(bump) : 0)
                     r.skew.transform = CATransform3DIdentity
                     r.old.isHidden = true
                     for g in r.ghosts { g.isHidden = true }
-                    place(r.new, x: base + io, y: localY, w: w, h: h, opacity: 1)
+                    place(r.new, x: base + io, y: localY, rect: ink?.rect, opacity: 1)
                     let lit = b == scanB && !reduce
-                    place(r.accent, x: base + io, y: localY, w: w, h: h, opacity: lit ? Float(0.9 * bump) : 0)
+                    place(r.accent, x: base + io, y: localY, rect: acc?.rect, opacity: lit ? Float(0.9 * bump) : 0)
                 } else {
                     let k = min(max((T - s.start - abs(Double(b) - mid) * Self.ribbonStagger) / Self.duration, 0), 1)
                     let e = R3Easing.expoInOut(k)
@@ -131,20 +137,20 @@ final class SliceRenderer: ClockStyle {
                     var skew = CATransform3DIdentity
                     skew.m21 = -dir * CGFloat(vel) * 0.4             // x' = x − dir·vel·0.4·y
                     r.skew.transform = skew
-                    setContents(r.old, oldImg)
+                    setContents(r.old, oldImg?.image)
                     if e < 1, oldImg != nil {
-                        place(r.old, x: base + dir * shift * CGFloat(e), y: localY, w: w, h: h, opacity: 1)
+                        place(r.old, x: base + dir * shift * CGFloat(e), y: localY, rect: oldImg?.rect, opacity: 1)
                     } else { r.old.isHidden = true }
                     if e > 0 {
                         let nx = base - dir * shift * CGFloat(1 - e)
                         for (gi, g) in r.ghosts.enumerated() {
                             let n = CGFloat(gi + 1)
-                            setContents(g, ink)
-                            place(g, x: nx - dir * shift * 0.05 * n, y: localY, w: w, h: h, opacity: Float(0.3 / Double(n) * vel))
+                            setContents(g, ink?.image)
+                            place(g, x: nx - dir * shift * 0.05 * n, y: localY, rect: ink?.rect, opacity: Float(0.3 / Double(n) * vel))
                         }
-                        place(r.new, x: nx, y: localY, w: w, h: h, opacity: 1)
+                        place(r.new, x: nx, y: localY, rect: ink?.rect, opacity: 1)
                         let tint = max(vel, (1 - e) * 0.35)
-                        place(r.accent, x: nx, y: localY, w: w, h: h, opacity: tint > 0.01 ? Float(tint) : 0)
+                        place(r.accent, x: nx, y: localY, rect: acc?.rect, opacity: tint > 0.01 ? Float(tint) : 0)
                     } else {
                         for l in r.ghosts + [r.new, r.accent] { l.isHidden = true }
                     }
@@ -157,6 +163,7 @@ final class SliceRenderer: ClockStyle {
         for c in colon where c.opacity != on { c.opacity = on }
 
         chrome.setLabel(R3Chrome.labelText(time, showSeconds: context.showSeconds))
+        if cache.count > usedThisFrame.count { cache = cache.filter { usedThisFrame.contains($0.key) } }
     }
 
     /// Only touch `contents` when the image actually changes.
@@ -164,9 +171,11 @@ final class SliceRenderer: ClockStyle {
         if (l.contents as AnyObject?) !== img { l.contents = img }
     }
 
-    private func place(_ l: CALayer, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, opacity: Float) {
+    /// Positions a cropped digit image: (x, y) is the cell's origin, `rect` the crop inside it.
+    private func place(_ l: CALayer, x: CGFloat, y: CGFloat, rect: CGRect?, opacity: Float) {
+        guard let rect else { l.isHidden = true; return }
         l.isHidden = opacity <= 0
-        l.frame = CGRect(x: x, y: y, width: w, height: h)
+        l.frame = rect.offsetBy(dx: x, dy: y)
         l.opacity = opacity
     }
 
@@ -217,30 +226,40 @@ final class SliceRenderer: ClockStyle {
         }
     }
 
-    /// The digit drawn in Anybody 800, semi-condensed, centred in a 0.72 S × 1.02 S cell.
-    private func glyph(_ ch: Character, accent: Bool) -> CGImage? {
+    /// The digit drawn in Anybody 800, semi-condensed, centred in a 0.72 S × 1.02 S cell, cropped
+    /// to its ink (plus a 2 pt margin) so the image is a fraction of the cell's size.
+    private func glyph(_ ch: Character, accent: Bool) -> Glyph? {
         guard ch != " ", size > 0 else { return nil }
         let key = "\(ch)\(accent ? "a" : "i")"
-        if let img = cache[key] { return img }
+        usedThisFrame.insert(key)
+        if let hit = cache[key] { return hit }
         let S = size, w = S * 0.72, h = S * 1.02
-        let pw = Int(ceil(w * scale)), ph = Int(ceil(h * scale))
-        guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
-                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        ctx.scaleBy(x: scale, y: scale)
         let font = Fonts.anybody(size: S, weight: 800, width: 87.5)
         var u = UniChar(ch.unicodeScalars.first!.value), g: CGGlyph = 0, adv = CGSize.zero
         CTFontGetGlyphsForCharacters(font, &u, &g, 1)
         CTFontGetAdvancesForGlyphs(font, .horizontal, &g, &adv, 1)
-        // textBaseline 'middle' at h/2 + 0.035 S (canvas, y down) → CG baseline (y up).
+        var ink = CGRect.zero
+        CTFontGetBoundingRectsForGlyphs(font, .horizontal, &g, &ink, 1)
+        // textBaseline 'middle' at h/2 + 0.035 S (canvas, y down).
         let a = CTFontGetAscent(font), d = CTFontGetDescent(font)
         let baselineDown = h / 2 + S * 0.035 + (a - d) / 2
+        let penX = (w - adv.width) / 2
+        // Ink box in cell coordinates (y down), padded and clamped to the cell.
+        let rect = CGRect(x: penX + ink.minX, y: baselineDown - ink.maxY, width: ink.width, height: ink.height)
+            .insetBy(dx: -2, dy: -2).intersection(CGRect(x: 0, y: 0, width: w, height: h)).integral
+        let pw = max(1, Int(ceil(rect.width * scale))), ph = max(1, Int(ceil(rect.height * scale)))
+        guard let ctx = CGContext(data: nil, width: pw, height: ph, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
         ctx.setFillColor(accent ? palette.accent : palette.ink)
-        var pos = CGPoint(x: (w - adv.width) / 2, y: h - baselineDown)
+        // Cell → crop space (y up): x − rect.minX; baseline at (rect.maxY − baselineDown) from the bottom.
+        var pos = CGPoint(x: penX - rect.minX, y: rect.maxY - baselineDown)
         CTFontDrawGlyphs(font, &g, &pos, 1, ctx)
-        let img = ctx.makeImage()
-        cache[key] = img
-        return img
+        guard let image = ctx.makeImage() else { return nil }
+        let glyph = Glyph(image: image, rect: rect)
+        cache[key] = glyph
+        return glyph
     }
 
     // MARK: Appearance

@@ -42,6 +42,20 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(s.hourCycle, .system)
         XCTAssertFalse(s.showSeconds)
         XCTAssertTrue(s.pureBlack, "Pure black is on by default")
+        XCTAssertTrue(s.allDisplays)
+        XCTAssertEqual(s.dim, 0)
+    }
+
+    func testDisplaysAndDimRoundTripAndClamp() {
+        var s = Settings()
+        s.allDisplays = false
+        s.dim = 0.35
+        s.save(to: defaults)
+        let back = Settings.load(from: defaults)
+        XCTAssertFalse(back.allDisplays)
+        XCTAssertEqual(back.dim, 0.35, accuracy: 1e-9)
+        defaults.set(5.0, forKey: Settings.Key.dim)
+        XCTAssertEqual(Settings.load(from: defaults).dim, 0.6, "dim is capped at 60%")
     }
 
     func testRoundTrip() {

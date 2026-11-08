@@ -14,6 +14,9 @@ final class QuietHoursView: ScreenSaverView {
     var forceCVDisplayLink = false
     /// >1 slows flips down for inspection.
     var timeScale: Double = 1
+    /// Settings to use instead of the stored ones (the Options sheet's live preview).
+    var overrideSettings: Settings?
+
     /// Debug: log frame pacing for each burst of continuous frames (Preview `-QHFrameStats YES`).
     var logFrameStats = false
     private var stats = (frames: 0, slow: 0, worst: 0.0, last: 0.0, busy: 0.0, first: 0.0)
@@ -44,6 +47,8 @@ final class QuietHoursView: ScreenSaverView {
     private var lastLinkTick: CFTimeInterval = 0
     private var idle = false          // display link paused; one render per second
     private var burnInOffset = CGPoint.zero
+    private var lastAppearancePoll: CFTimeInterval = 0
+    private let dimLayer = CALayer()
     private var idleTimer: Timer?
     private var running = false
     private let calendar = Calendar.autoupdatingCurrent
@@ -109,8 +114,13 @@ final class QuietHoursView: ScreenSaverView {
         running = true
 
         // Host workaround 3: settings may have changed while an old instance lingered.
-        settings = Settings.load(from: defaults)
+        settings = overrideSettings ?? Settings.load(from: defaults)
         if let fixed = Self.fixedStyle { settings.style = fixed }
+
+        // "Main display only": the other displays stay black and do no work at all.
+        if !settings.allDisplays && !isPreview, let screen = window?.screen, !Self.isMainDisplay(screen) {
+            return
+        }
         uses24Hour = TimeFormat.systemUses24Hour(settings.hourCycle)
         systemIsDark = AppearanceResolver.systemIsDark()
         finishAppearance = AppearanceResolver.resolve(settings.finish(for: settings.style), systemIsDark: systemIsDark)
@@ -148,10 +158,19 @@ final class QuietHoursView: ScreenSaverView {
         style = nil
         contentLayer?.removeFromSuperlayer()
         contentLayer = nil
+        dimLayer.removeFromSuperlayer()
     }
 
     private func hostWillStop() {
         if isAnimating { stopAnimation() } else { end() }
+    }
+
+    /// The main display is the first screen (the one with the menu bar), compared by display ID.
+    private static func isMainDisplay(_ screen: NSScreen) -> Bool {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        guard let main = NSScreen.screens.first?.deviceDescription[key] as? NSNumber,
+              let this = screen.deviceDescription[key] as? NSNumber else { return true }
+        return main == this
     }
 
     private static var hasViewDisplayLink: Bool {
@@ -180,6 +199,12 @@ final class QuietHoursView: ScreenSaverView {
         withoutActions {
             s.start(in: root)
             s.layout(bounds: bounds, scale: backingScale)
+            // Dim sits above the clock and outside the burn-in shift.
+            dimLayer.backgroundColor = CGColor(gray: 0, alpha: 1)
+            dimLayer.frame = bounds
+            dimLayer.opacity = Float(settings.dim)
+            dimLayer.isHidden = settings.dim <= 0
+            host.addSublayer(dimLayer)
         }
         style = s
     }
@@ -190,6 +215,13 @@ final class QuietHoursView: ScreenSaverView {
         guard running, let style else { return }
         let time = ClockTime(date: Date().addingTimeInterval(timeOffset), calendar: calendar, uses24Hour: uses24Hour)
         let work = CACurrentMediaTime()
+        // Belt and braces for Auto: if the theme notification never reaches the sandboxed host,
+        // re-read the system setting every 2 s so the finish still follows light/dark mode.
+        if work - lastAppearancePoll > 2 {
+            lastAppearancePoll = work
+            let dark = AppearanceResolver.systemIsDark()
+            if dark != systemIsDark { systemAppearanceChanged(dark) }
+        }
         withoutActions {
             style.render(time: time, frameTime: frameTime)
             applyBurnInShift()
@@ -297,6 +329,7 @@ final class QuietHoursView: ScreenSaverView {
         guard let contentLayer, let style else { return }
         withoutActions {
             contentLayer.frame = bounds
+            dimLayer.frame = bounds
             style.layout(bounds: bounds, scale: backingScale)
         }
         tick(CACurrentMediaTime())
@@ -320,6 +353,11 @@ final class QuietHoursView: ScreenSaverView {
     func apply(_ newSettings: Settings) {
         newSettings.save(to: defaults)
         restart()
+    }
+
+    /// Stops everything, whether or not ScreenSaverView's own animation was started.
+    func halt() {
+        if isAnimating { stopAnimation() } else { end() }
     }
 
     func restart() {

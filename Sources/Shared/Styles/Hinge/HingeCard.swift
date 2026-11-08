@@ -208,6 +208,8 @@ final class HingeCard {
         seam.backgroundColor = p.seam
         pinLeft.backgroundColor = p.pin
         pinRight.backgroundColor = p.pin
+        shadowSoft.shadowOpacity = p.shadowSoft
+        shadowTight.shadowOpacity = p.shadowTight
     }
 
     // MARK: Values and flipping

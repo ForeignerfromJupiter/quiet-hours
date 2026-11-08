@@ -45,6 +45,10 @@ struct Settings: Equatable {
     var showSeconds = false
     /// Dark finishes use a #000 room (OLED: pixels off). On by default.
     var pureBlack = true
+    /// false = only the main display shows the clock; the others stay black.
+    var allDisplays = true
+    /// 0…0.6: darkens the whole saver.
+    var dim = 0.0
 
     func finish(for style: StyleID) -> FinishChoice { finishes[style] ?? .auto }
 
@@ -53,6 +57,8 @@ struct Settings: Equatable {
         static let hourCycle = "hourCycle"
         static let showSeconds = "showSeconds"
         static let pureBlack = "pureBlack"
+        static let allDisplays = "allDisplays"
+        static let dim = "dim"
         static func finish(_ s: StyleID) -> String { "finish.\(s.rawValue)" }
     }
 
@@ -63,6 +69,8 @@ struct Settings: Equatable {
         if let raw = defaults.string(forKey: Key.hourCycle), let v = HourCycle(rawValue: raw) { s.hourCycle = v }
         if defaults.object(forKey: Key.showSeconds) != nil { s.showSeconds = defaults.bool(forKey: Key.showSeconds) }
         if defaults.object(forKey: Key.pureBlack) != nil { s.pureBlack = defaults.bool(forKey: Key.pureBlack) }
+        if defaults.object(forKey: Key.allDisplays) != nil { s.allDisplays = defaults.bool(forKey: Key.allDisplays) }
+        if defaults.object(forKey: Key.dim) != nil { s.dim = min(max(defaults.double(forKey: Key.dim), 0), 0.6) }
         for id in StyleID.allCases {
             if let raw = defaults.string(forKey: Key.finish(id)), let v = FinishChoice(rawValue: raw) {
                 s.finishes[id] = v
@@ -76,6 +84,8 @@ struct Settings: Equatable {
         defaults.set(hourCycle.rawValue, forKey: Key.hourCycle)
         defaults.set(showSeconds, forKey: Key.showSeconds)
         defaults.set(pureBlack, forKey: Key.pureBlack)
+        defaults.set(allDisplays, forKey: Key.allDisplays)
+        defaults.set(dim, forKey: Key.dim)
         for id in StyleID.allCases {
             if let f = finishes[id] { defaults.set(f.rawValue, forKey: Key.finish(id)) }
             else { defaults.removeObject(forKey: Key.finish(id)) }

@@ -13,6 +13,8 @@ struct HingePalette {
     let highlight: CGColor    // --hi
     let fold: CGColor         // --fold: the shade a falling leaf casts
     let foldClear: CGColor    // --fold at alpha 0, so gradients fade without going grey
+    let shadowSoft: Float     // drop-shadow strength under the cards
+    let shadowTight: Float
 
     /// Dark finish: charcoal cards, warm white numerals, black room.
     /// Deeper than the prototype (owner's call): room goes to true black at the edges and the
@@ -24,16 +26,19 @@ struct HingePalette {
         bottomA: srgb(0x141517), bottomB: srgb(0x0e0f11),
         ink: srgb(0xefebe2), seam: srgb(0x000000), pin: srgb(0x2c2d32), label: srgb(0x6f6c66),
         highlight: srgb(0xffffff, 0.07),
-        fold: srgb(0x000000, 0.62), foldClear: srgb(0x000000, 0))
+        fold: srgb(0x000000, 0.62), foldClear: srgb(0x000000, 0),
+        shadowSoft: 0.8, shadowTight: 0.35)
 
-    /// Light finish: cream cards, near-black numerals, dark warm room (prototype room #2a2723→#0d0c0b, deepened).
+    /// Light finish: cream cards, near-black numerals, on a warm light-grey room so Hinge reads as
+    /// light when macOS is light (owner's call; the prototype's Ivory kept a dark room #2a2723→#0d0c0b).
     static let ivory = HingePalette(
-        roomCenter: srgb(0x1c1a17), roomEdge: srgb(0x000000),
+        roomCenter: srgb(0xebe6db), roomEdge: srgb(0xcbc3b3),
         topA: srgb(0xf4f0e6), topB: srgb(0xebe6da),
         bottomA: srgb(0xe3ddd0), bottomB: srgb(0xd8d1c2),
-        ink: srgb(0x1c1b19), seam: srgb(0x6f695f), pin: srgb(0xb9b2a3), label: srgb(0x9b958a),
+        ink: srgb(0x1c1b19), seam: srgb(0x6f695f), pin: srgb(0xa59d8d), label: srgb(0x7d776c),
         highlight: srgb(0xffffff, 0.7),
-        fold: srgb(0x281e0f, 0.38), foldClear: srgb(0x281e0f, 0))
+        fold: srgb(0x281e0f, 0.38), foldClear: srgb(0x281e0f, 0),
+        shadowSoft: 0.28, shadowTight: 0.18)
 
     static func forAppearance(_ a: Appearance) -> HingePalette { a == .dark ? .graphite : .ivory }
 }

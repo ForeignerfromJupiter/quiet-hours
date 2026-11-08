@@ -8,12 +8,13 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
     private let bar = NSStackView()
 
     private let stylePopup = NSPopUpButton()
-    private let finishControl = NSSegmentedControl(labels: ["Auto", "Dark", "Light"], trackingMode: .selectOne, target: nil, action: nil)
+    private let finishControl = NSSegmentedControl(labels: ["Match system", "Dark", "Light"], trackingMode: .selectOne, target: nil, action: nil)
     private let hourControl = NSSegmentedControl(labels: ["System", "12h", "24h"], trackingMode: .selectOne, target: nil, action: nil)
     private let secondsCheck = NSButton(checkboxWithTitle: "Seconds", target: nil, action: nil)
     private let pureBlackCheck = NSButton(checkboxWithTitle: "Pure black", target: nil, action: nil)
     private let nextMinuteButton = NSButton(title: "Next minute", target: nil, action: nil)
     private let nextHourButton = NSButton(title: "Next hour", target: nil, action: nil)
+    private let optionsButton = NSButton(title: "Options…", target: nil, action: nil)
     private let liveButton = NSButton(title: "Back to live", target: nil, action: nil)
     private let slowCheck = NSButton(checkboxWithTitle: "Slow ×10", target: nil, action: nil)
     private let cvCheck = NSButton(checkboxWithTitle: "CVDisplayLink", target: nil, action: nil)
@@ -58,6 +59,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
                                   (pureBlackCheck, #selector(settingsChanged)),
                                   (nextMinuteButton, #selector(nextMinute)),
                                   (nextHourButton, #selector(nextHour)),
+                                  (optionsButton, #selector(showOptions)),
                                   (liveButton, #selector(backToLive)),
                                   (slowCheck, #selector(debugChanged)),
                                   (cvCheck, #selector(debugChanged))] {
@@ -79,7 +81,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         bar.orientation = .horizontal
         bar.spacing = 10
         bar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        for v in [stylePopup, finishControl, hourControl, secondsCheck, pureBlackCheck, nextMinuteButton, nextHourButton, liveButton,
+        for v in [stylePopup, finishControl, hourControl, secondsCheck, pureBlackCheck, nextMinuteButton, nextHourButton, optionsButton, liveButton,
                   slowCheck, cvCheck, spacer, status] as [NSView] {
             bar.addArrangedSubview(v)
         }
@@ -116,6 +118,9 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
             saverView.timeOffset = target.timeIntervalSinceNow
         }
         saverView.logFrameStats = args.bool(forKey: "QHFrameStats")
+        if args.bool(forKey: "QHShowOptions") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.showOptions() }
+        }
         // `-QHBare 1240x800`: borderless window of exactly that content size, no controls
         // (used by scripts/make-thumbnails.sh to capture the real renderer).
         if let bare = args.string(forKey: "QHBare")?.split(separator: "x").compactMap({ Double($0) }), bare.count == 2, let window {
@@ -173,6 +178,15 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
     @objc private func nextMinute() {
         saverView.skipToNextMinute()
         updateStatus()
+    }
+
+    /// Opens the real saver Options sheet, as System Settings would.
+    @objc private func showOptions() {
+        guard let sheet = saverView.configureSheet, let window else { return }
+        window.beginSheet(sheet) { [weak self] _ in
+            self?.syncControls()
+            self?.updateStatus()
+        }
     }
 
     @objc private func nextHour() {
