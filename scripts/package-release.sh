@@ -24,6 +24,13 @@ VERSION="$(awk -F': *' '/MARKETING_VERSION:/ {print $2; exit}' project.yml | tr 
 NAME="QuietHours-$VERSION"
 STAGE="$DIST/stage/Quiet Hours"
 
+# In CI (release.yml) Xcode has no signed-in account, so it authenticates with an App Store
+# Connect API key instead; on a Mac the Xcode account session is used.
+AUTH=()
+if [[ -n "${ASC_KEY_PATH:-}" ]]; then
+  AUTH=(-authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+fi
+
 command -v xcodegen >/dev/null || brew install xcodegen
 xcodegen generate --quiet
 CARRIER="$BUILD/notarized/QuietHoursRelease.app"
@@ -38,18 +45,18 @@ if [[ $REUSE == 0 ]]; then
 echo "==> archiving $VERSION (Release, arm64 + x86_64)"
 xcodebuild -project QuietHours.xcodeproj -scheme QuietHoursRelease -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$ROOT/build/DerivedData" \
-  -archivePath "$ARCHIVE" -allowProvisioningUpdates archive > "$BUILD/archive.log" 2>&1 \
+  -archivePath "$ARCHIVE" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} archive > "$BUILD/archive.log" 2>&1 \
   || { tail -20 "$BUILD/archive.log"; exit 1; }
 
 echo "==> signing with Developer ID and uploading to Apple's notary service"
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist scripts/export/DeveloperID-notarize.plist \
-  -exportPath "$BUILD/notarize-upload" -allowProvisioningUpdates > "$BUILD/notarize-upload.log" 2>&1 \
+  -exportPath "$BUILD/notarize-upload" -allowProvisioningUpdates ${AUTH[@]+"${AUTH[@]}"} > "$BUILD/notarize-upload.log" 2>&1 \
   || { tail -20 "$BUILD/notarize-upload.log"; exit 1; }
 
 echo "==> waiting for notarization (usually a few minutes)"
 for i in $(seq 1 60); do
   rm -rf "$BUILD/notarized"
-  if xcodebuild -exportNotarizedApp -archivePath "$ARCHIVE" -exportPath "$BUILD/notarized" > "$BUILD/notarized.log" 2>&1; then
+  if xcodebuild -exportNotarizedApp -archivePath "$ARCHIVE" -exportPath "$BUILD/notarized" ${AUTH[@]+"${AUTH[@]}"} > "$BUILD/notarized.log" 2>&1; then
     break
   fi
   if (( i == 60 )); then echo "notarization not finished after 20 minutes"; tail -20 "$BUILD/notarized.log"; exit 1; fi

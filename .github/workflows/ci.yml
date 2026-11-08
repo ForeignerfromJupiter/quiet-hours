@@ -1,0 +1,44 @@
+# Builds every saver (universal) and runs the unit tests on each push and pull request.
+# No signing and no secrets: signing only happens in release.yml.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      # Ad-hoc signing so CI needs no developer account.
+      SIGNING: CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        run: xcodegen generate
+
+      - name: Unit tests
+        run: |
+          xcodebuild -project QuietHours.xcodeproj -scheme QuietHoursPreview \
+            -destination 'platform=macOS' -derivedDataPath build/DerivedData \
+            test $SIGNING
+
+      - name: Build every saver (Release, arm64 + x86_64)
+        run: |
+          xcodebuild -project QuietHours.xcodeproj -scheme Savers -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData \
+            build $SIGNING
+          ls build/DerivedData/Build/Products/Release/ | grep '\.saver$'
