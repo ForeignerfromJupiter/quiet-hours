@@ -128,6 +128,21 @@ python3 -I windows/tools/serve.py   # then open:
 
 ## Install (users)
 
+> **About the Windows warning.** These savers aren't code-signed yet (see *Code signing* below).
+> So when you open or install one, Windows may say **"Windows protected your PC … unrecognized
+> app"**. Click **More info**, then **Run anyway**. Windows shows this for any program whose
+> publisher it doesn't know yet; it doesn't mean the file is harmful. The source is all in this
+> repository, and CI builds the files from it. On Windows 11 with **Smart App Control** on,
+> unsigned programs are blocked with no override. Wait for a signed release instead of turning
+> Smart App Control off.
+>
+> **Privacy.** Quiet Hours collects nothing. There are no analytics or accounts, and it makes no
+> network requests. The page is served from inside the `.scr`, and the saver refuses any other
+> request. WebView2's SmartScreen address checks are turned off. Options stay in your registry
+> (`HKCU\Software\Quiet Hours`). Errors are written to a local log file that is never sent
+> anywhere. The WebView2 runtime itself is a Windows component that Windows Update keeps up to
+> date.
+
 1. Download and unzip the release. If the zip came from a browser: right-click it → Properties →
    **Unblock** first, or every `.scr` inherits the download mark.
 2. Move the `.scr` files somewhere permanent, e.g. `%LOCALAPPDATA%\Programs\Quiet Hours`.

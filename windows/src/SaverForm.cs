@@ -122,6 +122,8 @@ namespace QuietHours.Windows
                 s.IsBuiltInErrorPageEnabled = false;
                 s.IsGeneralAutofillEnabled = false;
                 s.IsPasswordAutosaveEnabled = false;
+                // No SmartScreen URL lookups: the page is local and the saver never contacts anyone.
+                s.IsReputationCheckingRequired = false;
 
                 WebViewHost.ServePage(core, env);
                 core.WebMessageReceived += OnWebMessage;

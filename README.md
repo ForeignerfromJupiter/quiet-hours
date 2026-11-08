@@ -21,6 +21,25 @@ numerals), Poster (Swiss poster type) and Module (Bauhaus tiles).
 black (on by default, best for OLED screens). Works on macOS 12 Monterey and later, on Apple
 Silicon and Intel. To remove one, right-click it in Screen Saver settings and choose Delete.
 
+## Windows (experimental)
+
+There is an early Windows version of all eight styles, built from the same designs. It is not
+released yet, and it hasn't been tested on a Windows PC. See [windows/README.md](windows/README.md).
+
+**Expect a warning.** The Windows builds aren't code-signed yet, because signing needs a paid
+certificate. When you open one, Windows may show **"Windows protected your PC"**. Click
+**More info**, then **Run anyway**. Nothing is wrong with the file: Windows shows this for any
+program from a publisher it doesn't know yet. On Windows 11 with **Smart App Control** turned on,
+unsigned programs are blocked and there is no "Run anyway". Wait for a signed release rather than
+turning Smart App Control off. The source is all here if you'd rather build it yourself.
+
+## Privacy
+
+Quiet Hours collects nothing. There are no analytics, no accounts and no ads, and it never
+connects to the internet. It shows the time from your own computer's clock. Your options are
+saved only on your computer: in each screensaver's preferences on a Mac, and in the registry
+under `HKEY_CURRENT_USER\Software\Quiet Hours` on Windows.
+
 ## Build from source
 
 Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (the script installs it
