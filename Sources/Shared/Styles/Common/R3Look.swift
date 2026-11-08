@@ -70,7 +70,7 @@ final class R3Chrome {
 
     func layout(bounds: CGRect, scale: CGFloat) {
         self.bounds = bounds
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         let r = 0.7 * max(bounds.width, bounds.height)
         background.startPoint = CGPoint(x: 0.5, y: 0.46)
         background.endPoint = CGPoint(x: 0.5 + r / max(bounds.width, 1), y: 0.46 + r / max(bounds.height, 1))
@@ -79,8 +79,8 @@ final class R3Chrome {
         label.frame = CGRect(x: 0, y: bounds.height - 2.8 * u - 1.6 * u, width: bounds.width - 3.2 * u, height: 1.8 * u)
     }
 
-    func apply(_ p: R3Palette) {
-        background.colors = [p.roomCenter, p.roomEdge]
+    func apply(_ p: R3Palette, pureBlack: Bool) {
+        background.colors = pureBlack ? [Room.black, Room.black] : [p.roomCenter, p.roomEdge]
         palette = p
         setLabel(text, force: true)
     }

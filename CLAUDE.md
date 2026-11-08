@@ -105,6 +105,11 @@ Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable imp
   and lets `stop` take effect immediately. Styles do no layer work between transitions.
   Exception: endless ambient loops that need no per-frame logic (Prose's caret blink) run as
   CA animations on the render server.
+- **Room / OLED** (`Core/Room.swift`): with `Settings.pureBlack` (default on) a dark finish's room is
+  #000 throughout; light finishes are unchanged. Every style except Lumen gets a burn-in shift: the
+  view sets `contentLayer.sublayerTransform` to a slow, pixel-snapped Lissajous offset. Style
+  backgrounds use `Room.frame(bounds)` (oversized by the shift margin) so the edge never shows.
+  New styles: build the room with `Room.colors(...)` and `Room.frame(...)`.
 - **Refresh rate**: frame drivers request the screen's maximum rate (60/100/120/144…) and follow
   the window to other displays. Never assume 60 Hz: animate from `frameTime`, scale per-frame
   constants by `dt` (see Lumen's fade).

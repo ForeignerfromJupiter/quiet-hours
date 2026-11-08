@@ -11,6 +11,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
     private let finishControl = NSSegmentedControl(labels: ["Auto", "Dark", "Light"], trackingMode: .selectOne, target: nil, action: nil)
     private let hourControl = NSSegmentedControl(labels: ["System", "12h", "24h"], trackingMode: .selectOne, target: nil, action: nil)
     private let secondsCheck = NSButton(checkboxWithTitle: "Seconds", target: nil, action: nil)
+    private let pureBlackCheck = NSButton(checkboxWithTitle: "Pure black", target: nil, action: nil)
     private let nextMinuteButton = NSButton(title: "Next minute", target: nil, action: nil)
     private let nextHourButton = NSButton(title: "Next hour", target: nil, action: nil)
     private let liveButton = NSButton(title: "Back to live", target: nil, action: nil)
@@ -54,6 +55,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
                                   (finishControl, #selector(settingsChanged)),
                                   (hourControl, #selector(settingsChanged)),
                                   (secondsCheck, #selector(settingsChanged)),
+                                  (pureBlackCheck, #selector(settingsChanged)),
                                   (nextMinuteButton, #selector(nextMinute)),
                                   (nextHourButton, #selector(nextHour)),
                                   (liveButton, #selector(backToLive)),
@@ -77,7 +79,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         bar.orientation = .horizontal
         bar.spacing = 10
         bar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        for v in [stylePopup, finishControl, hourControl, secondsCheck, nextMinuteButton, nextHourButton, liveButton,
+        for v in [stylePopup, finishControl, hourControl, secondsCheck, pureBlackCheck, nextMinuteButton, nextHourButton, liveButton,
                   slowCheck, cvCheck, spacer, status] as [NSView] {
             bar.addArrangedSubview(v)
         }
@@ -155,6 +157,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         s.finishes[s.style] = Self.finishes[max(0, finishControl.selectedSegment)]
         s.hourCycle = Self.hours[max(0, hourControl.selectedSegment)]
         s.showSeconds = secondsCheck.state == .on
+        s.pureBlack = pureBlackCheck.state == .on
         saverView.apply(s)
         syncControls()
         updateStatus()
@@ -188,6 +191,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         finishControl.selectedSegment = Self.finishes.firstIndex(of: s.finish(for: s.style)) ?? 0
         hourControl.selectedSegment = Self.hours.firstIndex(of: s.hourCycle) ?? 0
         secondsCheck.state = s.showSeconds ? .on : .off
+        pureBlackCheck.state = s.pureBlack ? .on : .off
     }
 
     private func updateStatus() {

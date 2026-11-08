@@ -50,6 +50,7 @@ final class ProseRenderer: ClockStyle {
     private static let inCurve = CubicBezier(0.2, 0.8, 0.2, 1)
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: Palette
     private let background = CAGradientLayer()
     private let textRoot = CALayer()
@@ -81,6 +82,7 @@ final class ProseRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = context.appearance == .dark ? .night : .paper
+        self.appearance = context.appearance
     }
 
     /// Idle between rewrites: the view stops the display link (the caret blinks on the render server).
@@ -111,7 +113,7 @@ final class ProseRenderer: ClockStyle {
         unit = max(0.5, min(bounds.width / 100, bounds.height / 56))
         fontSize = ProseLayout.fontSizeUnits * unit
         softCache.removeAll()
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         textRoot.frame = bounds
         for l in [background, caret, rule, caption] { l.contentsScale = scale }
         if let tokens { rebuild(tokens) }
@@ -124,6 +126,7 @@ final class ProseRenderer: ClockStyle {
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = appearance == .dark ? .night : .paper
         softCache.removeAll()
         applyPalette()
@@ -349,7 +352,8 @@ final class ProseRenderer: ClockStyle {
     // MARK: Chrome
 
     private func applyPalette() {
-        background.colors = [palette.roomCenter, palette.roomEdge]
+        background.colors = Room.colors(center: palette.roomCenter, edge: palette.roomEdge,
+                                        appearance: appearance, pureBlack: context.pureBlack)
         caret.backgroundColor = palette.ink
         rule.backgroundColor = palette.muted
         updateCaption()

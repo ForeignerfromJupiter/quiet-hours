@@ -43,6 +43,7 @@ final class QuietHoursView: ScreenSaverView {
     private var uses24Hour = false
     private var lastLinkTick: CFTimeInterval = 0
     private var idle = false          // display link paused; one render per second
+    private var burnInOffset = CGPoint.zero
     private var idleTimer: Timer?
     private var running = false
     private let calendar = Calendar.autoupdatingCurrent
@@ -172,6 +173,7 @@ final class QuietHoursView: ScreenSaverView {
                                uses24Hour: uses24Hour,
                                reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
                                appearance: finishAppearance,
+                               pureBlack: settings.pureBlack,
                                timeScale: timeScale,
                                freezeFlipAt: freezeFlipAt)
         let s = ClockStyles.make(settings.style, context: ctx)
@@ -188,7 +190,10 @@ final class QuietHoursView: ScreenSaverView {
         guard running, let style else { return }
         let time = ClockTime(date: Date().addingTimeInterval(timeOffset), calendar: calendar, uses24Hour: uses24Hour)
         let work = CACurrentMediaTime()
-        withoutActions { style.render(time: time, frameTime: frameTime) }
+        withoutActions {
+            style.render(time: time, frameTime: frameTime)
+            applyBurnInShift()
+        }
         if logFrameStats && !idle { recordFrame(at: work, frameTime: frameTime) }
         updateIdle()
     }
@@ -219,6 +224,18 @@ final class QuietHoursView: ScreenSaverView {
               refreshRate, stats.frames, fps, stats.slow, stats.worst, stats.busy * 1000 / Double(stats.frames))
         stats = (0, 0, 0, 0, 0, 0)
     }
+    /// Moves the whole clock a few pixels over minutes (OLED burn-in protection). Pixel-snapped,
+    /// so it only changes every several seconds and text never resamples soft.
+    private func applyBurnInShift() {
+        guard let contentLayer, let style else { return }
+        let offset = style.allowsBurnInShift
+            ? Room.burnInOffset(at: Date().timeIntervalSinceReferenceDate, size: bounds.size, scale: backingScale)
+            : .zero
+        guard offset != burnInOffset else { return }
+        burnInOffset = offset
+        contentLayer.sublayerTransform = CATransform3DMakeTranslation(offset.x, offset.y, 0)
+    }
+
     /// Styles that are still between transitions (Prose) get no frames: the display link pauses
     /// and a timer renders once per second, on the second, until the style moves again.
     private func updateIdle() {

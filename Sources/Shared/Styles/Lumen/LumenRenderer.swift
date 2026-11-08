@@ -82,6 +82,9 @@ final class LumenRenderer: ClockStyle {
         }
     }
 
+    /// Particles never hold still, so no burn-in shift (it would also expose the Metal layer's edge).
+    var allowsBurnInShift: Bool { false }
+
     func start(in root: CALayer) {
         metalLayer.device = device
         metalLayer.pixelFormat = .bgra8Unorm

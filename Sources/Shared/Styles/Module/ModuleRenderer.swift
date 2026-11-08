@@ -63,6 +63,7 @@ final class ModuleRenderer: ClockStyle {
     private static let morph = 0.82, stagger = 0.055
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: R3Palette
     private let chrome = R3Chrome()
     private let slots = (0..<4).map { _ in Slot() }
@@ -80,6 +81,7 @@ final class ModuleRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = .forAppearance(context.appearance)
+        self.appearance = context.appearance
     }
 
     var wantsContinuousFrames: Bool { animating }
@@ -232,6 +234,7 @@ final class ModuleRenderer: ClockStyle {
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = .forAppearance(appearance)
         applyPalette()
         for s in slots { s.drawn = s.drawn.map { _ in .init(scale: -1, radii: []) } }
@@ -247,7 +250,7 @@ final class ModuleRenderer: ClockStyle {
     }
 
     private func applyPalette() {
-        chrome.apply(palette)
+        chrome.apply(palette, pureBlack: context.pureBlack && appearance == .dark)
         dot.backgroundColor = palette.ink(0.07)
         for c in colon { c.backgroundColor = palette.accent }
     }

@@ -12,6 +12,7 @@ final class OptionsSheet: NSObject {
     private let finishPopup = NSPopUpButton()
     private let hourPopup = NSPopUpButton()
     private let secondsCheck = NSButton(checkboxWithTitle: "Show seconds", target: nil, action: nil)
+    private let pureBlackCheck = NSButton(checkboxWithTitle: "Pure black background (OLED)", target: nil, action: nil)
 
     private static let hourTitles: [(HourCycle, String)] = [(.system, "System setting"), (.h12, "12-hour"), (.h24, "24-hour")]
 
@@ -41,6 +42,7 @@ final class OptionsSheet: NSObject {
             [label("Finish:"), finishPopup],
             [label("Time:"), hourPopup],
             [NSGridCell.emptyContentView, secondsCheck],
+            [NSGridCell.emptyContentView, pureBlackCheck],
         ])
         grid.rowSpacing = 10
         grid.columnSpacing = 10
@@ -54,7 +56,7 @@ final class OptionsSheet: NSObject {
         let buttons = NSStackView(views: [cancel, done])
         buttons.spacing = 8
 
-        let note = NSTextField(wrappingLabelWithString: "Auto follows macOS light and dark mode.")
+        let note = NSTextField(wrappingLabelWithString: "Auto follows macOS light and dark mode. Pure black applies to the dark finish. The clock drifts a few pixels over time to protect OLED screens.")
         note.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         note.textColor = .secondaryLabelColor
 
@@ -91,6 +93,7 @@ final class OptionsSheet: NSObject {
         fillFinishes()
         hourPopup.selectItem(at: Self.hourTitles.firstIndex { $0.0 == current.hourCycle } ?? 0)
         secondsCheck.state = current.showSeconds ? .on : .off
+        pureBlackCheck.state = current.pureBlack ? .on : .off
     }
 
     private func fillFinishes() {
@@ -119,6 +122,7 @@ final class OptionsSheet: NSObject {
         s.finishes[s.style] = FinishChoice.allCases[max(0, finishPopup.indexOfSelectedItem)]
         s.hourCycle = Self.hourTitles[max(0, hourPopup.indexOfSelectedItem)].0
         s.showSeconds = secondsCheck.state == .on
+        s.pureBlack = pureBlackCheck.state == .on
         s.save(to: defaults)
         close()
         view?.restart()   // the System Settings thumbnail shows the change right away

@@ -7,6 +7,7 @@ struct StyleContext {
     var uses24Hour: Bool
     var reduceMotion: Bool
     var appearance: Appearance
+    var pureBlack = true         // dark finishes use a #000 room
     var timeScale: Double = 1    // >1 slows animations down (Preview app debugging only)
     var freezeFlipAt: Double?    // hold transitions at this point (Preview app debugging only)
 }
@@ -37,10 +38,14 @@ protocol ClockStyle: AnyObject {
     /// False when nothing moves until the next time change: the view then pauses the display
     /// link and renders once per second instead (Prose between rewrites).
     var wantsContinuousFrames: Bool { get }
+
+    /// False for styles that never hold still (Lumen), which need no burn-in shift.
+    var allowsBurnInShift: Bool { get }
 }
 
 extension ClockStyle {
     var wantsContinuousFrames: Bool { true }
+    var allowsBurnInShift: Bool { true }
 }
 
 enum ClockStyles {

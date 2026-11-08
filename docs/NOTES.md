@@ -83,6 +83,14 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 - The new PRD was merged into docs/PRD.md, keeping the eight-saver release and the Prose
   decisions it was written without.
 
+## Pure black and burn-in shift (Nov 8 2026)
+
+- Verified by sampling pixels: with Pure black on, every dark room is #000000; off, it is the
+  original #05–#10 greys. Paper edges stay light while the clock drifts (no seam).
+- The shift moved Hinge by 1 pt in 25 s in the Preview (snapped to device pixels).
+- Not yet tested on a real OLED panel. If anything still burns in, the corner labels are the most
+  static element; they could fade during long idle stretches.
+
 ## Release (Phase 9)
 
 - Hardened runtime is already on for both targets. Add the Developer ID identity and

@@ -44,6 +44,7 @@ final class PosterRenderer: ClockStyle {
     private struct State: Equatable { let hh: String, mm: String, layout: Int }
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: R3Palette
     private let background = CAGradientLayer()
     private let grid = (0..<5).map { _ in CALayer() }
@@ -65,6 +66,7 @@ final class PosterRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = .forAppearance(context.appearance)
+        self.appearance = context.appearance
     }
 
     func start(in root: CALayer) {
@@ -84,7 +86,7 @@ final class PosterRenderer: ClockStyle {
     func layout(bounds: CGRect, scale: CGFloat) {
         self.bounds = bounds
         self.scale = scale
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         let r = 0.7 * max(bounds.width, bounds.height)
         background.startPoint = CGPoint(x: 0.5, y: 0.46)
         background.endPoint = CGPoint(x: 0.5 + r / max(bounds.width, 1), y: 0.46 + r / max(bounds.height, 1))
@@ -246,6 +248,7 @@ final class PosterRenderer: ClockStyle {
     // MARK: Appearance
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = .forAppearance(appearance)
         applyPalette()
     }
@@ -256,7 +259,8 @@ final class PosterRenderer: ClockStyle {
     }
 
     private func applyPalette() {
-        background.colors = [palette.roomCenter, palette.roomEdge]
+        background.colors = Room.colors(center: palette.roomCenter, edge: palette.roomEdge,
+                                        appearance: appearance, pureBlack: context.pureBlack)
         for g in grid { g.backgroundColor = palette.ink(0.05) }
         ink.fillColor = palette.ink
         accent.fillColor = palette.accent

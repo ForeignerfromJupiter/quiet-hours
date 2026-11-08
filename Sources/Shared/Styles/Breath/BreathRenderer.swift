@@ -21,6 +21,7 @@ final class BreathRenderer: ClockStyle {
     }
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: Palette
     private let background = CAGradientLayer()
     private let digitLayers = (0..<4).map { _ in CAShapeLayer() }
@@ -48,6 +49,7 @@ final class BreathRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = context.appearance == .dark ? .graphite : .paper
+        self.appearance = context.appearance
     }
 
     func start(in root: CALayer) {
@@ -69,7 +71,7 @@ final class BreathRenderer: ClockStyle {
         self.scale = scale
         // Block: time .8em·28 + 2.6 + scale 2.2 + 2.6 + meta 1.6 = 31.4 u tall, ~80 u wide.
         unit = max(0.5, min(bounds.width / 100, 0.66 * bounds.height / 31.4, 0.94 * bounds.width / 82))
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         for l in allLayers { l.contentsScale = scale }
 
         let top = (bounds.height - 31.4 * unit) / 2
@@ -187,6 +189,7 @@ final class BreathRenderer: ClockStyle {
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = appearance == .dark ? .graphite : .paper
         applyPalette()
     }
@@ -200,7 +203,8 @@ final class BreathRenderer: ClockStyle {
     }
 
     private func applyPalette() {
-        background.colors = [palette.roomCenter, palette.roomEdge]
+        background.colors = Room.colors(center: palette.roomCenter, edge: palette.roomEdge,
+                                        appearance: appearance, pureBlack: context.pureBlack)
         for l in digitLayers { l.fillColor = palette.ink }
         for d in dots { d.backgroundColor = palette.ink }
         for (j, tk) in ticks.enumerated() { tk.backgroundColor = j <= litTicks ? palette.ink : palette.tick }

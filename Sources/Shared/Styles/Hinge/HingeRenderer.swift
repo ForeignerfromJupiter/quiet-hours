@@ -5,6 +5,7 @@ import QuartzCore
 /// AM/PM label above the first card. All sizes are in prototype units (1 u = 1% of screen width).
 final class HingeRenderer: ClockStyle {
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: HingePalette
 
     private let background = CAGradientLayer()
@@ -29,6 +30,7 @@ final class HingeRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = .forAppearance(context.appearance)
+        self.appearance = context.appearance
         hourMinuteCards = (0..<4).map { _ in HingeCard(isSmall: false, timeScale: context.timeScale, freezeAt: context.freezeFlipAt) }
         secondCards = context.showSeconds
             ? (0..<2).map { _ in HingeCard(isSmall: true, timeScale: context.timeScale, freezeAt: context.freezeFlipAt) }
@@ -53,7 +55,7 @@ final class HingeRenderer: ClockStyle {
     func layout(bounds: CGRect, scale: CGFloat) {
         self.bounds = bounds
         self.scale = scale
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         background.contentsScale = scale
         label.contentsScale = scale
         resize()
@@ -137,6 +139,7 @@ final class HingeRenderer: ClockStyle {
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = .forAppearance(appearance)
         applyPalette()
     }
@@ -148,7 +151,8 @@ final class HingeRenderer: ClockStyle {
     }
 
     private func applyPalette() {
-        background.colors = [palette.roomCenter, palette.roomEdge]
+        background.colors = Room.colors(center: palette.roomCenter, edge: palette.roomEdge,
+                                        appearance: appearance, pureBlack: context.pureBlack)
         for c in allCards { c.apply(palette) }
         updateLabelText()
     }

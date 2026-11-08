@@ -39,6 +39,7 @@ final class SliceRenderer: ClockStyle {
     }
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: R3Palette
     private let chrome = R3Chrome()
     private let slots = (0..<4).map { _ in Slot() }
@@ -54,6 +55,7 @@ final class SliceRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = .forAppearance(context.appearance)
+        self.appearance = context.appearance
     }
 
     func start(in root: CALayer) {
@@ -244,6 +246,7 @@ final class SliceRenderer: ClockStyle {
     // MARK: Appearance
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = .forAppearance(appearance)
         cache.removeAll()
         applyPalette()
@@ -257,7 +260,7 @@ final class SliceRenderer: ClockStyle {
     }
 
     private func applyPalette() {
-        chrome.apply(palette)
+        chrome.apply(palette, pureBlack: context.pureBlack && appearance == .dark)
         for c in colon { c.backgroundColor = palette.ink }
     }
 }

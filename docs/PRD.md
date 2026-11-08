@@ -173,10 +173,13 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 | Finish | Auto, or the style's dark or light finish | Auto |
 | Time format | System, 12-hour, 24-hour | System (from the user's locale settings) |
 | Seconds | On, off | Off |
+| Pure black | On, off: the dark finish's room is #000 throughout (OLED pixels off, no mini-LED glow) | On |
 | Displays | Main display only, all displays | All displays |
 | Dim | 0 to 60% | 0% |
 
 The panel shows a small live preview of the chosen style and finish. Settings are stored with `ScreenSaverDefaults` under the saver's bundle ID.
+
+**OLED care** *(added Nov 8, 2026)*: every style except Lumen drifts by a few pixels (about 0.4% of the shorter side) on a slow 6–7 minute path, snapped to whole pixels, so static shapes never sit on the same pixels for long. Lumen's particles never hold still, so it needs none.
 
 ## Technical approach
 

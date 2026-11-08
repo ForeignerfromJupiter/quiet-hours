@@ -50,6 +50,7 @@ final class ChorusRenderer: ClockStyle {
     }
 
     private let context: StyleContext
+    private var appearance: Appearance
     private var palette: Palette
     private let background = CALayer()
     private let label = CATextLayer()
@@ -64,6 +65,7 @@ final class ChorusRenderer: ClockStyle {
     init(context: StyleContext) {
         self.context = context
         self.palette = context.appearance == .dark ? .night : .paper
+        self.appearance = context.appearance
         var list: [Cell] = []
         for c in 0..<8 { for r in 0..<3 { list.append(Cell(c: c, r: r)) } }
         cells = list
@@ -83,7 +85,7 @@ final class ChorusRenderer: ClockStyle {
     func layout(bounds: CGRect, scale: CGFloat) {
         self.bounds = bounds
         self.scale = scale
-        background.frame = bounds
+        background.frame = Room.frame(bounds)
         let W = bounds.width, H = bounds.height
         cellSize = min(W * 0.9 / 9.2, H * 0.74 / 3)
         origin = CGPoint(x: (W - cellSize * 9.2) / 2, y: (H - cellSize * 3) / 2)
@@ -194,6 +196,7 @@ final class ChorusRenderer: ClockStyle {
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
+        self.appearance = appearance
         palette = appearance == .dark ? .night : .paper
         applyPalette()
         if cellSize > 0 { layout(bounds: bounds, scale: scale) }   // faces are baked per palette
