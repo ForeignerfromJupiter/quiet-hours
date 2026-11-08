@@ -33,6 +33,14 @@ protocol ClockStyle: AnyObject {
 
     /// Tear down layers and drop any resources.
     func stop()
+
+    /// False when nothing moves until the next time change: the view then pauses the display
+    /// link and renders once per second instead (Prose between rewrites).
+    var wantsContinuousFrames: Bool { get }
+}
+
+extension ClockStyle {
+    var wantsContinuousFrames: Bool { true }
 }
 
 enum ClockStyles {
@@ -42,6 +50,7 @@ enum ClockStyles {
         case .chorus: return ChorusRenderer(context: context)
         case .breath: return BreathRenderer(context: context)
         case .lumen: return LumenRenderer(context: context)
+        case .prose: return ProseRenderer(context: context)
         }
     }
 }

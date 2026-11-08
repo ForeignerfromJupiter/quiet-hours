@@ -10,6 +10,8 @@ import QuartzCore
 protocol FrameDriver: AnyObject {
     func start()
     func stop()
+    /// Pauses frames without tearing the driver down (idle styles).
+    func setPaused(_ paused: Bool)
 }
 
 enum FrameDrivers {
@@ -61,6 +63,8 @@ private final class ViewDisplayLinkDriver: FrameDriver {
         link?.invalidate()   // releases the proxy
         link = nil
     }
+
+    func setPaused(_ paused: Bool) { link?.isPaused = paused }
 
     deinit { stop() }
 }
@@ -142,6 +146,11 @@ private final class CVDisplayLinkDriver: FrameDriver {
               let number = view?.window?.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
         else { return }
         CVDisplayLinkSetCurrentCGDisplay(link, CGDirectDisplayID(number.uint32Value))
+    }
+
+    func setPaused(_ paused: Bool) {
+        guard let link else { return }
+        if paused { CVDisplayLinkStop(link) } else { CVDisplayLinkStart(link) }
     }
 
     func stop() {

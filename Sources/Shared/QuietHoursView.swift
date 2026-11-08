@@ -13,6 +13,9 @@ final class QuietHoursView: ScreenSaverView {
     var forceCVDisplayLink = false
     /// >1 slows flips down for inspection.
     var timeScale: Double = 1
+    /// Debug: log frame pacing for each burst of continuous frames (Preview `-QHFrameStats YES`).
+    var logFrameStats = false
+    private var stats = (frames: 0, slow: 0, worst: 0.0, last: 0.0, busy: 0.0)
     /// Debug: hold every flip at this many seconds into its timeline.
     var freezeFlipAt: Double?
     /// The Preview app turns this off so the real saver stopping doesn't stop the preview.
@@ -35,6 +38,8 @@ final class QuietHoursView: ScreenSaverView {
     private var lifecycleObserver: HostLifecycleObserver?
     private var uses24Hour = false
     private var lastLinkTick: CFTimeInterval = 0
+    private var idle = false          // display link paused; one render per second
+    private var idleTimer: Timer?
     private var running = false
     private let calendar = Calendar.autoupdatingCurrent
 
@@ -125,6 +130,7 @@ final class QuietHoursView: ScreenSaverView {
         guard running else { return }
         running = false
         driver?.stop(); driver = nil
+        idleTimer?.invalidate(); idleTimer = nil; idle = false
         appearanceObserver?.invalidate(); appearanceObserver = nil
         lifecycleObserver?.invalidate(); lifecycleObserver = nil
         withoutActions { style?.stop() }
@@ -171,13 +177,64 @@ final class QuietHoursView: ScreenSaverView {
     private func tick(_ frameTime: CFTimeInterval) {
         guard running, let style else { return }
         let time = ClockTime(date: Date().addingTimeInterval(timeOffset), calendar: calendar, uses24Hour: uses24Hour)
+        let work = CACurrentMediaTime()
         withoutActions { style.render(time: time, frameTime: frameTime) }
+        if logFrameStats && !idle { recordFrame(at: work) }
+        updateIdle()
+    }
+
+    /// Counts frames whose interval exceeded 1.5 × the 60 Hz budget and the CPU time spent rendering.
+    private func recordFrame(at start: CFTimeInterval) {
+        let now = CACurrentMediaTime()
+        stats.busy += now - start
+        if stats.last > 0 {
+            let dt = (now - stats.last) * 1000
+            stats.frames += 1
+            if dt > 25 { stats.slow += 1 }
+            stats.worst = max(stats.worst, dt)
+        }
+        stats.last = now
+    }
+    /// Styles that are still between transitions (Prose) get no frames: the display link pauses
+    /// and a timer renders once per second, on the second, until the style moves again.
+    private func updateIdle() {
+        guard running, let style else { return }
+        let wantsIdle = !style.wantsContinuousFrames
+        if wantsIdle && !idle {
+            if logFrameStats && stats.frames > 0 {
+                NSLog("QuietHours frames: %d, slower than 25 ms: %d, worst %.1f ms, render CPU %.2f ms/frame",
+                      stats.frames, stats.slow, stats.worst, stats.busy * 1000 / Double(stats.frames))
+            }
+            stats = (0, 0, 0, 0, 0)
+            idle = true
+            driver?.setPaused(true)
+            scheduleIdleTick()
+        } else if !wantsIdle && idle {
+            idle = false
+            idleTimer?.invalidate(); idleTimer = nil
+            lastLinkTick = CACurrentMediaTime()
+            driver?.setPaused(false)
+        }
+    }
+
+    private func scheduleIdleTick() {
+        idleTimer?.invalidate()
+        let now = Date().addingTimeInterval(timeOffset).timeIntervalSinceReferenceDate
+        let delay = 1 - now.truncatingRemainder(dividingBy: 1) + 0.002
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            guard let self, self.idle else { return }
+            self.tick(CACurrentMediaTime())
+            if self.idle { self.scheduleIdleTick() }
+        }
+        timer.tolerance = 0.004
+        RunLoop.main.add(timer, forMode: .common)
+        idleTimer = timer
     }
 
     /// Watchdog: if the display link stops ticking (it has in some host states), keep the clock
     /// moving from ScreenSaverView's own 30 fps timer.
     override func animateOneFrame() {
-        guard running else { return }
+        guard running, !idle else { return }
         let now = CACurrentMediaTime()
         if now - lastLinkTick > 0.25 { tick(now) }
     }
@@ -243,9 +300,13 @@ final class QuietHoursView: ScreenSaverView {
         let c = calendar.dateComponents([.second, .nanosecond], from: now)
         let intoMinute = Double(c.second ?? 0) + Double(c.nanosecond ?? 0) / 1e9
         timeOffset += 60 - intoMinute + 0.04
+        tick(CACurrentMediaTime())   // an idle style wakes now, not at the next second
     }
 
-    func backToLive() { timeOffset = 0 }
+    func backToLive() {
+        timeOffset = 0
+        tick(CACurrentMediaTime())
+    }
 
     private func withoutActions(_ body: () -> Void) {
         CATransaction.begin()

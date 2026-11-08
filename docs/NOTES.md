@@ -6,7 +6,7 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 
 - **System Settings thumbnail.** On macOS 14+, the Screen Saver grid shows `thumbnail.png` /
   `thumbnail@2x.png` from the bundle's Resources instead of a live view. Add real per-style
-  thumbnails in Phase 5. Until then the saver shows a generic tile.
+  thumbnails in Phase 6. Until then the saver shows a generic tile.
 - **Lingering `legacyScreenSaver`.** We stop all work on `willstop`. Some savers also call
   `exit(0)` there, because the host process stays alive. Measure with Activity Monitor and
   Instruments over an hour before deciding; exiting would also kill the System Settings preview.
@@ -49,7 +49,16 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
   (Debug), Lumen ~17% (Release), so Lumen misses the PRD's 10% target. Next: move the particle
   update to a Metal compute shader.
 
-## Release (Phase 5)
+## Prose (Phase 5 done)
+
+- Shared words reflow instantly when the line breaks change, as in the prototype. A short glide
+  (≈300 ms) for the words that stay would beat it.
+- English only. `ProseSentence.tokens` is the seam for other languages.
+- Blur is a pre-blurred quarter-resolution bitmap per glyph that cross-fades with the vector
+  glyph, not a live filter.
+- Idle mode (`wantsContinuousFrames`) could also serve Hinge and Chorus between transitions.
+
+## Release (Phase 6)
 
 - Hardened runtime is already on for both targets. Add the Developer ID identity and
   notarization in CI; the `.p12` and API key go in repository secrets only.

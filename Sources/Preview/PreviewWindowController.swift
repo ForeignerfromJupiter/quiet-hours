@@ -105,6 +105,16 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
             saverView.timeScale = args.double(forKey: "QHTimeScale")
             slowCheck.state = saverView.timeScale > 1 ? .on : .off
         }
+        // `-QHTime 20:06` or `-QHTime 20:07:58` starts the clock at that time.
+        if let hm = args.string(forKey: "QHTime")?.split(separator: ":").compactMap({ Int($0) }), hm.count >= 2 {
+            let cal = Calendar.current
+            let target = cal.date(bySettingHour: hm[0], minute: hm[1], second: hm.count > 2 ? hm[2] : 0, of: Date()) ?? Date()
+            saverView.timeOffset = target.timeIntervalSinceNow
+        }
+        saverView.logFrameStats = args.bool(forKey: "QHFrameStats")
+        if args.bool(forKey: "QHFullScreen") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.window?.toggleFullScreen(nil) }
+        }
         if args.object(forKey: "QHFreeze") != nil {
             saverView.freezeFlipAt = args.double(forKey: "QHFreeze")
         }

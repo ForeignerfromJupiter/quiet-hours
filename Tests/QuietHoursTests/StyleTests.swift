@@ -17,6 +17,7 @@ final class StyleRegistryTests: XCTestCase {
         XCTAssertTrue(ClockStyles.make(.chorus, context: ctx) is ChorusRenderer)
         XCTAssertTrue(ClockStyles.make(.breath, context: ctx) is BreathRenderer)
         XCTAssertTrue(ClockStyles.make(.lumen, context: ctx) is LumenRenderer)
+        XCTAssertTrue(ClockStyles.make(.prose, context: ctx) is ProseRenderer)
         for s in StyleID.allCases { XCTAssertTrue(s.isAvailable); XCTAssertFalse(s.finishNames.dark.isEmpty) }
     }
 }

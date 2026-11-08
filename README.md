@@ -25,5 +25,6 @@ Supports macOS 12 Monterey and later on Apple Silicon and Intel.
 
 ## License
 
-MIT (see `LICENSE`). The bundled Anybody font is © The Anybody Project Authors, under the SIL
-Open Font License 1.1 (`Resources/Fonts/OFL.txt`).
+MIT (see `LICENSE`). Bundled fonts, both under the SIL Open Font License 1.1: Anybody © The
+Anybody Project Authors (`Resources/Fonts/OFL-Anybody.txt`) and Instrument Serif © The Instrument
+Serif Project Authors (`Resources/Fonts/OFL-InstrumentSerif.txt`).

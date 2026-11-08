@@ -9,7 +9,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wdth,wght@50..150,100..900&family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a single "display" holding the live clock, controls above, finish + time preview under it, the four directions as picks below */
 :root{
@@ -17,6 +17,7 @@
   --f-display:"Anybody","Arial Narrow",system-ui,sans-serif;
   --f-body:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --f-serif:"Instrument Serif","Iowan Old Style",Georgia,serif;
   color-scheme:dark;
 }
 [hidden]{display:none!important}
@@ -117,6 +118,25 @@ kbd{font:12px/1 var(--f-mono);color:var(--ink);border:1px solid var(--line);bord
 .br-scale b.on{background:var(--ink)}
 .br-meta{display:flex;gap:2.4cqw;min-height:1.6cqw;font:500 1.4cqw/1 var(--f-mono);letter-spacing:.24em;color:var(--muted)}
 
+
+.card .tag{font:500 10px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(240,179,94,.45);border-radius:999px;padding:3px 7px;margin-left:8px;vertical-align:4px}
+/* ---------- Prose ---------- */
+.prose{--bgA:#16161a;--bgB:#09090b;--ink:#efebe2;--muted:rgba(239,235,226,.42);
+  position:absolute;inset:0;display:grid;align-content:center;padding:0 9cqw;background:radial-gradient(ellipse 85% 75% at 40% 45%,var(--bgA),var(--bgB))}
+.prose[data-v="paper"]{--bgA:#f4f1ea;--bgB:#e4dfd4;--ink:#171614;--muted:rgba(23,22,20,.5)}
+.ps-block{display:grid;gap:3.4cqw;max-width:80cqw}
+.ps{margin:0;font-family:var(--f-serif);font-size:9.6cqw;line-height:1.04;letter-spacing:-.012em;color:var(--ink);text-wrap:balance}
+.ps .w{white-space:nowrap;display:inline-block}
+.ps .w.em{font-style:italic}
+.ps .c{display:inline-block;white-space:pre}
+.ps .w.out .c{animation:psOut .38s cubic-bezier(.5,0,.75,0) forwards;animation-delay:calc(var(--i) * 14ms)}
+.ps .w.in .c{opacity:0;animation:psIn .8s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 30ms)}
+@keyframes psOut{to{opacity:0;transform:translateY(-.22em);filter:blur(.06em)}}
+@keyframes psIn{from{opacity:0;transform:translateY(.28em);filter:blur(.08em)}to{opacity:1;transform:none;filter:none}}
+.ps-caret{display:inline-block;width:.05em;height:.78em;margin-left:.1em;vertical-align:-.04em;background:var(--ink);animation:psBlink 1.2s ease-in-out infinite}
+@keyframes psBlink{0%,45%{opacity:.9}55%,100%{opacity:0}}
+.ps-cap{display:flex;align-items:center;gap:1.4cqw;font:500 1.4cqw/1 var(--f-mono);letter-spacing:.22em;color:var(--muted)}
+.ps-cap::before{content:"";display:block;width:3.2cqw;height:1px;background:currentColor}
 @media (prefers-reduced-motion: reduce){
   .flap.go .front,.flap.go .back,.flap.go .front::after,.flap.go .back::after,.flap.go .bottom::after{animation-duration:.01s;animation-delay:0s}
 }
@@ -126,7 +146,7 @@ kbd{font:12px/1 var(--f-mono);color:var(--ink);border:1px solid var(--line);bord
   <header>
     <div class="brand">
       <h1>Quiet Hours</h1>
-      <p>Four screensaver directions for macOS, running live. Auto finishes follow light and dark mode. Preview the minute change and watch them full screen.</p>
+      <p>Screensaver directions for macOS, running live. Hinge, Chorus, Breath and Lumen are the set; Prose is the new candidate. Auto finishes follow light and dark mode.</p>
     </div>
     <div class="controls" role="group" aria-label="Clock settings">
       <div class="seg" role="group" aria-label="Hour format">
@@ -167,8 +187,8 @@ kbd{font:12px/1 var(--f-mono);color:var(--ink);border:1px solid var(--line);bord
 (function(){
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const state = {style:'hinge', h24:false, secs:false, offset:0, v:{}};
-try{ const s=JSON.parse(localStorage.getItem('quiet-hours-3')||'{}'); if(s.style) state.style=s.style; state.h24=!!s.h24; state.secs=!!s.secs; if(s.v) state.v=s.v; }catch(e){}
-function save(){ try{ localStorage.setItem('quiet-hours-3', JSON.stringify({style:state.style,h24:state.h24,secs:state.secs,v:state.v})); }catch(e){} }
+try{ const s=JSON.parse(localStorage.getItem('quiet-hours-4')||'{}'); if(s.style) state.style=s.style; state.h24=!!s.h24; state.secs=!!s.secs; if(s.v) state.v=s.v; }catch(e){}
+function save(){ try{ localStorage.setItem('quiet-hours-4', JSON.stringify({style:state.style,h24:state.h24,secs:state.secs,v:state.v})); }catch(e){} }
 
 const pad=n=>String(n).padStart(2,'0');
 function parts(){
@@ -425,10 +445,67 @@ const Lumen={
   }
 };
 
+/* ================= Prose ================= */
+const NUMW=['twelve','one','two','three','four','five','six','seven','eight','nine','ten','eleven'];
+const MINW={5:'five',10:'ten',15:'a quarter',20:'twenty',25:'twenty-five',35:'twenty-five',40:'twenty',45:'a quarter',50:'ten',55:'five'};
+function proseTokens(h,m){
+  const rem=m%5; let tgt=m-rem, lead=[];
+  if(rem===1||rem===2) lead=['just','after'];
+  else if(rem>=3){ tgt+=5; lead=['nearly']; }
+  let hh=h; if(tgt===60){ tgt=0; hh=h+1; } else if(tgt>30) hh=h+1; hh%=24;
+  const toks=[{t:"It's"}, ...lead.map(t=>({t}))];
+  const special = hh===0 ? 'midnight' : (hh===12 && tgt===0 ? 'noon' : null);
+  const hw = special || NUMW[hh%12];
+  if(tgt===0){ toks.push({t:hw,em:true}); if(!special) toks.push({t:"o'clock"}); }
+  else if(tgt===30){ toks.push({t:'half'},{t:'past'},{t:hw,em:true}); }
+  else { MINW[tgt].split(' ').forEach(t=>toks.push({t})); toks.push({t:tgt<30?'past':'to'},{t:hw,em:true}); }
+  if(!special){ const tod = hh<5?['at','night']:hh<12?['in','the','morning']:hh<17?['in','the','afternoon']:hh<21?['in','the','evening']:['at','night']; tod.forEach(t=>toks.push({t})); }
+  toks[toks.length-1]={...toks[toks.length-1],t:toks[toks.length-1].t+'.'};
+  return toks;
+}
+const Prose={
+  id:'prose', name:'Prose', isNew:true,
+  line:'The time as a sentence, set like a page: "It\'s nearly ten past eight in the evening." Only the words that change rewrite themselves, letter by letter.',
+  insp:'Book typography, the way people actually tell time',
+  variants:[{id:'auto',name:'Auto'},{id:'night',name:'Night'},{id:'paper',name:'Paper'}], dark:'night', light:'paper',
+  mount(el,v){
+    el.innerHTML=`<div class="prose" data-v="${v}"><div class="ps-block"><p class="ps"></p><div class="ps-cap"></div></div></div>`;
+    const P=el.querySelector('.ps'), cap=el.querySelector('.ps-cap');
+    let cur=[], key=null, timer=null;
+    const caret=document.createElement('span'); caret.className='ps-caret';
+    function wordEl(tk,cls,start){ const s=document.createElement('span'); s.className='w'+(tk.em?' em':'')+(cls?' '+cls:'');
+      [...tk.t].forEach((ch,i)=>{ const c=document.createElement('span'); c.className='c'; c.textContent=ch; c.style.setProperty('--i',start+i); s.appendChild(c); }); return s; }
+    function lay(items){ P.innerHTML=''; items.forEach((it,i)=>{ if(i) P.appendChild(document.createTextNode(' ')); P.appendChild(it.el); }); P.appendChild(caret); }
+    function render(toks){
+      clearTimeout(timer);
+      if(!cur.length||reduce){ cur=toks.map(tk=>({...tk,el:wordEl(tk,'',0)})); lay(cur); return; }
+      let a=0; while(a<cur.length&&a<toks.length&&cur[a].t===toks[a].t&&!!cur[a].em===!!toks[a].em) a++;
+      let b=0; while(b<cur.length-a&&b<toks.length-a&&cur[cur.length-1-b].t===toks[toks.length-1-b].t&&!!cur[cur.length-1-b].em===!!toks[toks.length-1-b].em) b++;
+      const oldMid=cur.slice(a,cur.length-b); let n=0;
+      oldMid.forEach(o=>{ o.el.classList.add('out'); [...o.el.children].forEach(c=>c.style.setProperty('--i',n++)); });
+      const outMs=oldMid.length?380+n*14:0;
+      timer=setTimeout(()=>{
+        let k=0; const mid=toks.slice(a,toks.length-b).map(tk=>{ const e=wordEl(tk,'in',k); k+=tk.t.length; return {...tk,el:e}; });
+        cur=[...cur.slice(0,a),...mid,...cur.slice(cur.length-b)];
+        lay(cur);
+      },outMs);
+    }
+    return {
+      frame(p){
+        const toks=proseTokens(p.h,p.m), k=toks.map(x=>x.t).join(' ');
+        if(k!==key){ key=k; render(toks); }
+        const hd=state.h24?pad(p.h):String(p.h%12||12);
+        cap.textContent=`${hd}:${pad(p.m)}${state.secs?':'+p.sec:''}${state.h24?'':' '+(p.pm?'PM':'AM')}`;
+      },
+      destroy(){ clearTimeout(timer); }
+    };
+  }
+};
+
 /* ================= app ================= */
-const STYLES=[Hinge,Chorus,Breath,Lumen];
+const STYLES=[Hinge,Chorus,Breath,Lumen,Prose];
 const screen=document.getElementById('screen'), device=document.getElementById('device'), list=document.getElementById('styles'), finish=document.getElementById('finish');
-list.innerHTML=STYLES.map(s=>`<button type="button" class="card" id="card-${s.id}" data-id="${s.id}" aria-pressed="false"><span class="nm">${s.name}</span><span class="ln">${s.line}</span><span class="insp"><b>After</b>${s.insp}</span></button>`).join('');
+list.innerHTML=STYLES.map(s=>`<button type="button" class="card" id="card-${s.id}" data-id="${s.id}" aria-pressed="false"><span class="nm">${s.name}${s.isNew?'<span class="tag">New</span>':''}</span><span class="ln">${s.line}</span><span class="insp"><b>After</b>${s.insp}</span></button>`).join('');
 let active=null, S=null;
 const autoNote=document.getElementById('autoNote');
 const isDark=()=>{ const a=document.documentElement.getAttribute('data-theme'); if(a==='dark') return true; if(a==='light') return false; return matchMedia('(prefers-color-scheme: dark)').matches; };

@@ -1,6 +1,6 @@
 # Quiet Hours
 
-Open source macOS screensaver with four clock styles (Hinge, Chorus, Breath, Lumen).
+Open source macOS screensaver with five clock styles (Hinge, Chorus, Breath, Lumen, Prose).
 **The product is a single `QuietHours.saver` bundle.** Users download it, double-click it, and
 pick it in System Settings → Screen Saver. It follows the system's light/dark mode and 12/24h
 setting. `QuietHoursPreview.app` is a developer harness only and never ships.
@@ -9,14 +9,15 @@ Specs: `docs/PRD.md` (product) and `reference/prototype.html` (visual and motion
 truth: timings, easing curves, sizes and colors must match or beat it). Ideas for later phases:
 `docs/NOTES.md`.
 
-Status: all four styles run natively (first pass of Phases 2–4, ported from the prototype).
-A simple Options sheet (style, finish, time format, seconds) works in System Settings. Still to
-do: Lumen's "push further" round, the full Options panel (live preview, displays, dim),
-thumbnails and the release pipeline (Phase 5).
+Status: Phases 1–5 done: all five styles run natively (Breath, Chorus and Lumen are first-pass
+ports). A simple Options sheet (style, finish, time format, seconds) works in System Settings.
+Still to do: Lumen's "push further" round, and Phase 6 (full Options panel with live preview,
+displays and dim; thumbnails; signing, notarization and release).
 
 Deliberate departures from the prototype (owner's calls): dark finishes use deeper blacks (rooms
 go to #000); Hinge sizes the visible row to fill ~94% of the width (height-capped at 70%), so a
-three-card 12h time is larger than a four-card one; Chorus's 8 closes its lower loop.
+three-card 12h time is larger than a four-card one; Chorus's 8 closes its lower loop; Prose says
+"to noon" from 11:33 to 11:57 and shows curly apostrophes (both recorded in the PRD).
 
 ## Build, test, install
 
@@ -33,7 +34,10 @@ line, which is Xcode tooling noise).
 
 Preview debug launch arguments: `-QHTimeScale 10` (slow motion, all styles), `-QHFlipIn 2`
 (next minute change lands 2 s after launch; `-QHFlipIn 30` lands on :30 for Chorus patterns),
-`-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline).
+`-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline), `-QHTime 20:07:57`
+(start the clock at that time), `-QHFrameStats YES` (logs frame pacing after each burst of
+animation), `-QHFullScreen YES`. Serve `reference/` with the `reference` entry in
+`.claude/launch.json` (http://localhost:8765) to view the prototype and ideas page live.
 Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
 The installed saver's settings live in the `legacyScreenSaver` container under the
@@ -59,9 +63,11 @@ Sources/Shared/             compiled into both the saver and the preview app
   Styles/Chorus/            ChorusRenderer: baked face bitmap + rotated hand layers
   Styles/Lumen/             LumenRenderer: CPU particles, Metal points + feedback-texture trails
                             (shaders compiled at runtime from a string: no Metal toolchain needed)
+  Styles/Prose/             ProseSentence (pure sentence builder + word diff), ProseLayout
+                            (Core Text shaping, balanced lines), ProseRenderer (one layer per glyph)
 Sources/Saver/Info.plist    NSPrincipalClass = QuietHoursView
 Sources/Preview/            preview harness (window, controls)
-Resources/Fonts/            Anybody-Variable.ttf + OFL.txt (bundled into both targets)
+Resources/Fonts/            Anybody-Variable.ttf, InstrumentSerif-Regular/Italic.ttf + OFL licenses (both targets)
 Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable import QuietHoursPreview)
 ```
 
@@ -78,6 +84,11 @@ Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable imp
   (`CubicBezier`, `HingeFlipTimeline`). Don't use implicit CA animations or `CASpringAnimation`.
   This keeps the motion identical to the prototype, lets the time offset and slow motion work,
   and lets `stop` take effect immediately. Styles do no layer work between transitions.
+  Exception: endless ambient loops that need no per-frame logic (Prose's caret blink) run as
+  CA animations on the render server.
+- **Idle mode**: a style returning `wantsContinuousFrames == false` gets its display link paused;
+  the view renders once per second, on the second, until the style moves again (Prose uses it;
+  Hinge and Chorus could).
 - **Units**: styles size everything in prototype units (`u` = 1% of screen width, the CSS
   `cqw`). Hinge caps `u` so the row never takes more than 62% of the height (ultrawides).
 - **Appearance**: Auto reads `AppleInterfaceStyle` via `CFPreferencesCopyAppValue` (after

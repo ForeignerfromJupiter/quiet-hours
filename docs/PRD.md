@@ -2,13 +2,13 @@
 
 Nov 8, 2026 · @Ashik
 
-Quiet Hours is a free, open source macOS screensaver with four clock styles: Hinge, Chorus, Breath and Lumen. It ships as one signed and notarized .saver on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
+Quiet Hours is a free, open source macOS screensaver with five clock styles: Hinge, Chorus, Breath, Lumen and Prose. It ships as one signed and notarized .saver on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
 
 ## Goals and non-goals
 
 **Goals**
 
-1. Four clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
+1. Five clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
 2. Every style follows macOS light or dark mode by default, with a manual override.
 3. One `.saver` file anyone can download from GitHub Releases and install with a double-click, with no Gatekeeper warning.
 4. Runs on Apple Silicon and Intel Macs, macOS 12 Monterey and later.
@@ -67,6 +67,34 @@ The time drawn in a few thousand points of light. This is the least settled styl
 - Dark: warm white points with additive blending and short motion trails. Light: graphite points on paper.
 - Push further in the native build: depth (particles at different sizes and blur for parallax), a slow drifting field of stray particles around the digits, and particles that curve along a flow field instead of flying straight.
 
+### Prose
+
+The time as one sentence, set large like a page of a book.
+
+- Language: round to the nearest five minutes. One or two minutes past a mark reads "just after"; three or four reads "nearly" plus the next mark. Phrases run "o'clock", "five past", "ten past", "a quarter past", "twenty past", "twenty-five past", "half past", then "twenty-five to" down to "five to".
+- Midnight and noon are named ("It's nearly midnight."). Time of day replaces AM/PM, based on the hour named: in the morning (5 to 11), in the afternoon (12 to 16), in the evening (17 to 20), at night (21 to 4).
+- Approaching noon reads "to noon" (11:33 to 11:57, "It's twenty-five to noon."), mirroring midnight, so the morning is never called the afternoon. *(Decided Nov 8, 2026.)*
+- Apostrophes are curly on screen ("It’s", "o’clock"); the sentence builder and this table keep straight ones.
+- The hour word is italic. The sentence ends with a period.
+- Type: Instrument Serif (OFL, bundled), 9.6% of screen width, line height 1.04, left aligned with a 9% inset, balanced lines, max width 80% of the screen.
+- Rewrite: compare old and new sentences word by word and keep the shared start and end untouched. Changing words dissolve letter by letter (380 ms, rising 0.22 em with a slight blur, 14 ms stagger), then the new words rise in letter by letter (800 ms, 30 ms stagger).
+- Caret: a thin bar after the period, blinking on a 1.2 s cycle.
+- Caption: the exact time in small mono under a short rule, following the 12/24h and seconds settings.
+- English only in v1. The sentence builder is one pure function so other languages can be added later.
+
+| Time | Sentence |
+| --- | --- |
+| 20:00 | It's *eight* o'clock in the evening. |
+| 20:06 | It's just after five past *eight* in the evening. |
+| 20:08 | It's nearly ten past *eight* in the evening. |
+| 20:30 | It's half past *eight* in the evening. |
+| 20:58 | It's nearly *nine* o'clock at night. |
+| 23:58 | It's nearly *midnight*. |
+| 00:07 | It's just after five past *midnight*. |
+| 12:00 | It's *noon*. |
+| 12:30 | It's half past *twelve* in the afternoon. |
+| 11:35 | It's twenty-five to *noon*. |
+
 ## Appearance and options
 
 Every style defaults to **Auto**: it shows its dark finish when macOS is in dark mode and its light finish in light mode, and switches live if the mode changes while the saver runs. The user can pin a finish per style instead.
@@ -77,12 +105,13 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 | Chorus | Night: dark faces, warm white hands | Paper: off-white faces, near-black hands |
 | Breath | Graphite: warm white on graphite | Paper: near-black on warm paper |
 | Lumen | Night: warm white light points, additive glow | Paper: graphite points on paper |
+| Prose | Night: warm white serif on graphite | Paper: near-black serif on warm paper |
 
 **Options panel** (the saver's Options button in System Settings, `configureSheet`)
 
 | Setting | Choices | Default |
 | --- | --- | --- |
-| Style | Hinge, Chorus, Breath, Lumen | Hinge |
+| Style | Hinge, Chorus, Breath, Lumen, Prose | Hinge |
 | Finish | Auto, or the style's dark or light finish | Auto |
 | Time format | System, 12-hour, 24-hour | System (from the user's locale settings) |
 | Seconds | On, off | Off |
@@ -161,7 +190,9 @@ Releases go out on GitHub, signed with Ashik's Developer ID and notarized by App
    - Exit: every digit 0 to 9 reads clearly; patterns run at :27 to :36 and return cleanly.
 4. **Phase 4: Lumen.** Particle field on Metal, scatter and re-form, trails, both finishes, then one round of pushing the design further.
    - Exit: under 10% CPU on Apple Silicon at 60 fps; Ashik signs off on the look.
-5. **Phase 5: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, v1.0 release.
+5. **Phase 5: Prose.** Sentence builder with unit tests against the table above, bundled Instrument Serif, word-level rewrite animation, caret, caption, both finishes.
+   - Exit: every row of the Prose table renders exactly; only changed words animate; no layout jump beyond the line reflow.
+6. **Phase 6: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, v1.0 release.
    - Exit: a fresh download from GitHub installs with no Gatekeeper warning on a second Mac.
 
 ## Claude Code kickoff prompt
@@ -174,7 +205,7 @@ Before pasting:
 4. Open Claude Code in that folder.
 
 ```text
-You're building "Quiet Hours", an open source macOS screensaver with four clock styles. Read docs/PRD.md completely, then read reference/prototype.html. The prototype is the visual and motion spec: its timings, easing curves, sizes and colors are what the native version must match or beat.
+You're building "Quiet Hours", an open source macOS screensaver with five clock styles. Read docs/PRD.md completely, then read reference/prototype.html. The prototype is the visual and motion spec: its timings, easing curves, sizes and colors are what the native version must match or beat.
 
 Scope for this session: Phase 1 only (skeleton + Hinge). Stop after Phase 1 and wait for my review.
 
@@ -202,7 +233,22 @@ Working style
 4. Add a script, scripts/install-local.sh, that builds the .saver and copies it to ~/Library/Screen Savers so I can try it for real.
 5. When Phase 1 is done, give me a manual test checklist against the Phase 1 exit criteria, and commit to git with a clear message.
 
-Don't start Breath, Chorus, Lumen, the Options panel or the release pipeline yet. Put ideas for later phases in docs/NOTES.md.
+Don't start Breath, Chorus, Lumen, Prose, the Options panel or the release pipeline yet. Put ideas for later phases in docs/NOTES.md.
 ```
 
 For each later phase, start a fresh Claude Code session with: "Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to N are done. Plan Phase N+1 the same way: plan first, wait for my OK, build in small steps, give me a test checklist against its exit criteria." For Lumen, also ask it to build two or three variations in PreviewApp before settling on one.
+
+**Prose phase prompt** (use when Phases 1 to 4 are done):
+
+```text
+Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 4 are done. Build Phase 5: the Prose style.
+
+- Port proseTokens from the prototype into a pure Swift function and unit-test it against every row of the Prose table in the PRD before any rendering work.
+- Bundle Instrument Serif (OFL, from Google Fonts) with its license and register it like Anybody.
+- Match the prototype exactly: size, inset, line height, balanced lines, italic hour word, caret, caption under a short rule.
+- Rewrite animation: diff old and new sentences word by word, keep the shared start and end untouched, dissolve the changed words letter by letter, then rise the new words in, using the PRD's timings. Use one layer per glyph (Core Text glyph runs into CALayers or CATextLayers) so each letter can animate on its own.
+- Night and Paper finishes, resolved by Auto appearance like the other styles.
+- Must hold 60 fps full screen and stay quiet between rewrites (no redraw when nothing changes except the caret).
+
+Plan first and wait for my OK. Build in small steps, building with xcodebuild after each. Finish with a test checklist against the Phase 5 exit criteria and a git commit.
+```
