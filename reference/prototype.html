@@ -138,6 +138,33 @@ kbd{font:12px/1 var(--f-mono);color:var(--ink);border:1px solid var(--line);bord
 .ps-cap{display:flex;align-items:center;gap:1.4cqw;font:500 1.4cqw/1 var(--f-mono);letter-spacing:.22em;color:var(--muted)}
 .ps-cap::before{content:"";display:block;width:3.2cqw;height:1px;background:currentColor}
 
+
+/* ---------- Round 5 DOM styles ---------- */
+.r3d{--bgA:#17171b;--bgB:#08080a;--ink:#efebe2;--muted:rgba(239,235,226,.45);--rule:rgba(239,235,226,.14);--acc:#f0b35e;
+  position:absolute;inset:0;color:var(--ink);background:radial-gradient(ellipse 85% 75% at 50% 42%,var(--bgA),var(--bgB));overflow:hidden}
+.r3d[data-v="paper"]{--bgA:#f3f0e9;--bgB:#ddd7cb;--ink:#161514;--muted:rgba(22,21,20,.5);--rule:rgba(22,21,20,.16);--acc:#2b4c7e}
+.spec{display:grid;grid-template-rows:auto 1fr;gap:2cqw;padding:4.5cqw 5cqw 4.5cqw}
+.sp-head{display:flex;justify-content:space-between;gap:2cqw;font:500 1.1cqw/1 var(--f-mono);letter-spacing:.22em;color:var(--muted)}
+.sp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));border-top:1px solid var(--rule);border-left:1px solid var(--rule)}
+.sp-cell{border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);display:flex;flex-direction:column;justify-content:space-between;padding:1.3cqw 1.4cqw 1.1cqw;min-width:0;overflow:hidden}
+.sp-cell .t{display:block;font-family:var(--f-display);font-size:5.2cqw;line-height:1;white-space:nowrap;transition:color .5s}
+.sp-cell .c{font:500 .95cqw/1 var(--f-mono);letter-spacing:.14em;color:var(--muted);white-space:nowrap}
+.sp-cell.hot .t{color:var(--acc)}
+.board{display:grid;grid-template-rows:auto auto 1fr;padding:5cqw 6.5cqw 4.5cqw}
+.bd-head{display:flex;align-items:flex-end;justify-content:space-between;gap:3cqw;padding-bottom:1.6cqw}
+.bd-big{font-family:var(--f-display);font-variation-settings:"wdth" 78,"wght" 800;font-size:15cqw;line-height:.78;letter-spacing:-.01em;font-feature-settings:"tnum"}
+.bd-meta{display:grid;justify-items:end;gap:.9cqw;font:500 1.15cqw/1 var(--f-mono);letter-spacing:.2em;color:var(--muted);text-align:right}
+.bd-meta b{font-weight:500;color:var(--ink)}
+.bd-bar{height:.35cqw;background:var(--rule);margin-bottom:1cqw}
+.bd-bar i{display:block;height:100%;background:var(--acc);transform-origin:0 50%}
+.bd-rows{display:grid;grid-auto-rows:minmax(0,1fr)}
+.bd-row{display:grid;grid-template-columns:1.6cqw minmax(0,1fr) 9cqw 11cqw 20cqw;align-items:center;border-bottom:1px solid var(--rule);gap:1.4cqw}
+.bd-dot{width:.9cqw;height:.9cqw;border-radius:50%;border:1px solid var(--rule)}
+.bd-dot.on{background:var(--acc);border-color:var(--acc)}
+.bd-city{font-family:var(--f-display);font-variation-settings:"wdth" 100,"wght" 620;font-size:3cqw;line-height:1;white-space:nowrap}
+.bd-off,.bd-day{font:500 1.05cqw/1 var(--f-mono);letter-spacing:.16em;color:var(--muted);white-space:nowrap}
+.bd-time{font-family:var(--f-display);font-variation-settings:"wdth" 82,"wght" 760;font-size:3.6cqw;line-height:1;text-align:right;font-feature-settings:"tnum";white-space:nowrap}
+
 @media (prefers-reduced-motion: reduce){
   .flap.go .front,.flap.go .back,.flap.go .front::after,.flap.go .back::after,.flap.go .bottom::after{animation-duration:.01s;animation-delay:0s}
 }
@@ -147,7 +174,7 @@ kbd{font:12px/1 var(--f-mono);color:var(--ink);border:1px solid var(--line);bord
   <header>
     <div class="brand">
       <h1>Quiet Hours</h1>
-      <p>The eight Quiet Hours styles, running live. Auto finishes follow light and dark mode. Use Next minute and Next hour to see each transition, and watch them full screen.</p>
+      <p>All thirteen Quiet Hours styles, running live. Auto finishes follow light and dark mode. Use Next minute and Next hour to see each transition, and watch them full screen.</p>
     </div>
     <div class="controls" role="group" aria-label="Clock settings">
       <div class="seg" role="group" aria-label="Hour format">
@@ -668,8 +695,193 @@ const Module={
   }
 };
 
+/* ================= Round 5 ================= */
+const R5V=[{id:'auto',name:'Auto'},{id:'night',name:'Night'},{id:'paper',name:'Paper'}];
+const timeSlots=p=>[p.digits[0],p.digits[1],':',p.digits[2],p.digits[3]];
+
+/* ---------- Ticker ---------- */
+const Ticker={
+  id:'ticker', name:'Ticker',
+  line:'The time and date as one enormous line of type scrolling endlessly, solid time then outlined date, with accent dots between. New minutes arrive from the right. Two small mono tickers run the other way.',
+  insp:'News tickers, stadium ribbon boards',
+  variants:R5V, dark:'night', light:'paper',
+  mount(el,v){
+    const pal=R3_PAL[v]||R3_PAL.night; el.style.background=pal.bg[1];
+    const C=canvasIn(el); const items=[]; let lt=0, seqI=0; const seq=['time','sep','date','sep'];
+    return {
+      frame(p,t){
+        const {ctx,W,H,dpr}=C; if(!W||!H) return; ctx.setTransform(dpr,0,0,dpr,0,0); r3bg(ctx,W,H,pal);
+        const size=H*.46, font=`800 ${size}px Anybody, "Arial Narrow", sans-serif`; ctx.font=font; setStretch(ctx,'condensed');
+        const dt=Math.min(64,t-(lt||t)); lt=t; const sp=reduce?0:W*.06/1000;
+        items.forEach(it=>it.x-=sp*dt); while(items.length&&items[0].x+items[0].w<-W*.05) items.shift();
+        const timeTxt=trimTime(p)+(state.secs?':'+p.sec:''), dateTxt=p.d.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'short'}).toUpperCase().replace(',','');
+        let endX=items.length?items[items.length-1].x+items[items.length-1].w:W*.06;
+        while(endX<W*1.4){ const type=seq[seqI++%4], txt=type==='time'?timeTxt:type==='date'?dateTxt:''; const w=type==='sep'?size*.62:ctx.measureText(txt).width; items.push({type,txt,x:endX,w}); endX+=w; }
+        const cy=H*.5, base=cy+size*.36;
+        ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+        for(const it of items){ if(it.x>W||it.x+it.w<0) continue;
+          if(it.type==='time'){ ctx.fillStyle=rgbS(pal.ink); ctx.fillText(it.txt,it.x,base); }
+          else if(it.type==='date'){ ctx.strokeStyle=rgbS(pal.ink,.9); ctx.lineWidth=Math.max(1.2,size*.012); ctx.strokeText(it.txt,it.x,base); }
+          else { ctx.fillStyle=pal.accent; ctx.beginPath(); ctx.arc(it.x+it.w/2,cy,size*.085,0,TAU); ctx.fill(); } }
+        const fs=Math.max(9,W*.012); ctx.font=`500 ${fs}px "Geist Mono", ui-monospace, monospace`; ctx.fillStyle=rgbS(pal.ink,.42);
+        const band=('QUIET HOURS  /  '+dateTxt+'  /  '+timeTxt+(state.h24?'':' '+(p.pm?'PM':'AM'))+'  /  ').split('').join(' ')+'   ';
+        const bw=ctx.measureText(band).width||1, o1=((t*sp*.35)%bw+bw)%bw;
+        for(let x=-bw+o1;x<W;x+=bw) ctx.fillText(band,x,H*.11);
+        for(let x=-o1;x<W;x+=bw) ctx.fillText(band,x,H*.92);
+        ctx.fillStyle=pal.rule; ctx.fillRect(0,H*.13,W,1); ctx.fillRect(0,H*.875,W,1);
+      },
+      destroy(){ C.ro.disconnect(); el.style.background=''; }
+    };
+  }
+};
+
+/* ---------- Echo ---------- */
+const Echo={
+  id:'echo', name:'Echo',
+  line:'Big numerals with six outline echoes stacked behind them. The echoes slowly orbit like a moving light to mark the seconds, and on a change the solid numeral moves first while the echoes trail after it one by one.',
+  insp:'Extruded display type, motion trails',
+  variants:R5V, dark:'night', light:'paper',
+  mount(el,v){
+    const pal=R3_PAL[v]||R3_PAL.night; el.style.background=pal.bg[1];
+    const C=canvasIn(el), label=document.createElement('div'); label.className='corner-label'; label.style.color=pal.label; el.appendChild(label);
+    const NL=7, slots=[0,1,2,3,4].map(()=>Array.from({length:NL},()=>({ch:null,old:null,t0:0})));
+    return {
+      frame(p,t){
+        const {ctx,W,H,dpr}=C; if(!W||!H) return; ctx.setTransform(dpr,0,0,dpr,0,0); r3bg(ctx,W,H,pal);
+        const chars=timeSlots(p); let order=0;
+        chars.forEach((c,i)=>{ let ch=false; slots[i].forEach((ly,L)=>{ if(ly.ch===c) return; if(ly.ch!==null&&!reduce){ ly.old=ly.ch; ly.t0=t+L*70+order*110; ch=true; } ly.ch=c; }); if(ch) order++; });
+        const vis=chars.map((c,i)=>({c,i})).filter(o=>o.c!==' '), wOf=c=>c===':'?.32:.66;
+        const units=vis.reduce((a,o)=>a+wOf(o.c),0), S=Math.min(H*.52,W*.8/units), off=S*.024;
+        const a=reduce?Math.PI*.25:Math.PI*.75-((p.s+p.ms/1000)/60)*TAU, ox=Math.cos(a)*off, oy=Math.sin(a)*off;
+        ctx.font=`800 ${S}px Anybody, "Arial Narrow", sans-serif`; setStretch(ctx,'semi-condensed'); ctx.textAlign='center'; ctx.textBaseline='middle';
+        const xs=[]; let x=(W-units*S)/2-ox*(NL-1)/2; vis.forEach(o=>{ xs.push(x+wOf(o.c)*S/2); x+=wOf(o.c)*S; });
+        const cy=H/2+S*.03-oy*(NL-1)/2;
+        for(let L=NL-1;L>=0;L--){
+          vis.forEach((o,j)=>{ const ly=slots[o.i][L], px=xs[j]+ox*L, py=cy+oy*L;
+            const put=(txt,alpha,dy)=>{ if(alpha<=0) return; ctx.globalAlpha=alpha*(L?(1-L/8)*.95:1);
+              if(L){ ctx.strokeStyle=pal.accent; ctx.lineWidth=Math.max(1,S*.007); ctx.strokeText(txt,px,py+dy); } else { ctx.fillStyle=rgbS(pal.ink); ctx.fillText(txt,px,py+dy); } };
+            if(ly.old){ const k=clamp((t-ly.t0)/420,0,1), e=expoIO(k); if(k>=1) ly.old=null; else { put(ly.old,1-e,-e*S*.35); put(ly.ch,e,(1-e)*S*.35); return; } }
+            put(ly.ch,1,0); });
+        }
+        ctx.globalAlpha=1;
+        label.textContent=[state.secs?p.sec:'',ampm(p)].filter(Boolean).join('   ');
+      },
+      destroy(){ C.ro.disconnect(); el.style.background=''; }
+    };
+  }
+};
+
+/* ---------- Shutter ---------- */
+const Shutter={
+  id:'shutter', name:'Shutter',
+  line:'The time sits behind a camera iris whose blade tips frame the corners and breathe slightly. On the minute the blades snap shut in the accent colour, rotate, and reopen on the new time.',
+  insp:'Camera apertures, title sequences',
+  variants:R5V, dark:'night', light:'paper',
+  mount(el,v){
+    const pal=R3_PAL[v]||R3_PAL.night; el.style.background=pal.bg[1];
+    const C=canvasIn(el), label=document.createElement('div'); label.className='corner-label'; label.style.color=pal.label; el.appendChild(label);
+    const rest=v==='paper'?[208,201,187]:[29,30,35], acc=[1,3,5].map(i=>parseInt(pal.accent.slice(i,i+2),16));
+    let shown=null, pend=null, t0=0;
+    return {
+      frame(p,t){
+        const {ctx,W,H,dpr}=C; if(!W||!H) return; ctx.setTransform(dpr,0,0,dpr,0,0); r3bg(ctx,W,H,pal);
+        const txt=trimTime(p);
+        if(shown===null||reduce) shown=txt; else if(txt!==shown&&txt!==pend){ pend=txt; t0=t; }
+        let close=0; if(pend){ const e=t-t0; if(e<380){ const k=e/380; close=k*k*k; } else if(e<540){ close=1; if(e>=460) shown=pend; } else if(e<1240){ const k=(e-540)/700; close=1-(1-Math.pow(2,-10*k)); } else { pend=null; } }
+        const S=Math.min(H*.46,W*.74/(txt.length*.6)); ctx.font=`800 ${S}px Anybody, "Arial Narrow", sans-serif`; setStretch(ctx,'semi-condensed'); ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle=rgbS(pal.ink); ctx.fillText(shown,W/2,H/2+S*.03);
+        const hd=Math.hypot(W,H)/2, r=hd*.86*(1+(reduce?0:.018*Math.sin(t/1500)))*(1-close), th=(reduce?0:t*.00004)+close*1.1, n=7, cx=W/2, cy=H/2, BIG=hd*4;
+        const V=[...Array(n)].map((_,i)=>[cx+Math.cos(th+i*TAU/n)*r,cy+Math.sin(th+i*TAU/n)*r]);
+        const D=V.map((q,i)=>{ const nx=V[(i+1)%n]; let dx=nx[0]-q[0], dy=nx[1]-q[1]; const m=Math.hypot(dx,dy)||1; if(r<1){ const a=th+i*TAU/n+Math.PI/2+Math.PI/n; return [Math.cos(a),Math.sin(a)]; } return [dx/m,dy/m]; });
+        const far=i=>{ const nx=V[(i+1)%n]; return [nx[0]+D[i][0]*BIG,nx[1]+D[i][1]*BIG]; };
+        const col=rest.map((c,q)=>Math.round(c+(acc[q]-c)*close));
+        for(let i=0;i<n;i++){ const a=V[i], b=V[(i+1)%n], f1=far(i), f0=far((i-1+n)%n), sh=i%2?.9:1;
+          ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.lineTo(f1[0],f1[1]); ctx.lineTo(f0[0],f0[1]); ctx.closePath();
+          ctx.fillStyle=`rgb(${col.map(c=>Math.round(c*sh))})`; ctx.fill(); ctx.strokeStyle='rgba(0,0,0,.28)'; ctx.lineWidth=1; ctx.stroke(); }
+        label.textContent=[state.secs?p.sec:'',ampm(p)].filter(Boolean).join('   ');
+      },
+      destroy(){ C.ro.disconnect(); el.style.background=''; }
+    };
+  }
+};
+
+/* ---------- Specimen ---------- */
+const Specimen={
+  id:'specimen', name:'Specimen',
+  line:'The time set twelve times as a type specimen sheet, each cell a different width and weight of one variable font, with live axis values. A slow weight wave ripples across the sheet and changes cascade cell by cell.',
+  insp:'Type foundry specimen sheets',
+  variants:R5V, dark:'night', light:'paper',
+  mount(el,v){
+    const WD=[55,84,114,144], WG=[220,520,820]; let cells='';
+    WG.forEach((g,r)=>WD.forEach((d,c)=>{ cells+=`<div class="sp-cell"><span class="t"></span><span class="c"></span></div>`; }));
+    el.innerHTML=`<div class="r3d spec" data-v="${v}"><div class="sp-head"><span>QUIET HOURS / SPECIMEN / ANYBODY VARIABLE</span><span class="sp-date"></span></div><div class="sp-grid">${cells}</div></div>`;
+    const cs=[...el.querySelectorAll('.sp-cell')].map((n,i)=>({n,t:n.querySelector('.t'),c:n.querySelector('.c'),r:(i/4)|0,col:i%4,v:null,next:null,t0:0,sw:false})), dt=el.querySelector('.sp-date');
+    return {
+      frame(p,t){
+        const txt=trimTime(p), hot=Math.floor(((p.s+p.ms/1000)/60)*12);
+        cs.forEach((c,i)=>{
+          if(c.v===null){ c.v=txt; c.t.textContent=txt; }
+          else if(txt!==c.v&&txt!==c.next){ if(reduce){ c.v=txt; c.t.textContent=txt; } else { c.next=txt; c.t0=t+(c.r*4+c.col)*75; c.sw=false; } }
+          let op=1, dy=0;
+          if(c.next){ const k=(t-c.t0)/460; if(k>=0){ if(k<.5){ op=1-k*2; dy=-k*.5; } else { if(!c.sw){ c.t.textContent=c.next; c.sw=true; } op=Math.min(1,(k-.5)*2); dy=(1-Math.min(1,k))*.25; } if(k>=1){ c.v=c.next; c.next=null; } } }
+          const w=clamp(WG[c.r]+(reduce?0:150*Math.sin(t/1100-(c.r+c.col)*.6)),100,900);
+          c.t.style.fontVariationSettings=`"wght" ${w.toFixed(0)}, "wdth" ${WD[c.col]}`; c.t.style.opacity=op.toFixed(3); c.t.style.transform=`translateY(${dy.toFixed(3)}em)`;
+          c.c.textContent=`WDTH ${WD[c.col]}  ·  WGHT ${Math.round(w)}`; c.n.classList.toggle('hot',i===hot);
+        });
+        dt.textContent=p.d.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'short'}).toUpperCase().replace(',','')+(state.h24?'':'  '+(p.pm?'PM':'AM'))+(state.secs?'  '+p.sec:'');
+      },
+      destroy(){}
+    };
+  }
+};
+
+/* ---------- Board ---------- */
+const BOARD_CITIES=[['London','Europe/London'],['New York','America/New_York'],['San Francisco','America/Los_Angeles'],['Berlin','Europe/Berlin'],['Tokyo','Asia/Tokyo'],['Sydney','Australia/Sydney'],['Dubai','Asia/Dubai']];
+const Board={
+  id:'board', name:'Board',
+  line:'A Swiss timetable: your time large at the top, world cities ruled in a strict grid below with their offset and day. An accent dot marks cities in working hours. Changes scramble through digits and settle row by row.',
+  insp:'Swiss railway timetables, departure boards',
+  variants:R5V, dark:'night', light:'paper',
+  mount(el,v){
+    let tz='UTC'; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'; }catch(e){}
+    const localCity=(tz.split('/').pop()||'Local').replace(/_/g,' ').replace('Calcutta','Kolkata');
+    const cities=BOARD_CITIES.filter(c=>c[1]!==tz).slice(0,6);
+    el.innerHTML=`<div class="r3d board" data-v="${v}"><div class="bd-head"><div class="bd-big"></div><div class="bd-meta"><b>${localCity.toUpperCase()}</b><span class="bd-date"></span><span class="bd-sub"></span></div></div><div class="bd-bar"><i></i></div><div class="bd-rows">${cities.map(c=>`<div class="bd-row"><i class="bd-dot"></i><span class="bd-city">${c[0]}</span><span class="bd-off"></span><span class="bd-day"></span><span class="bd-time"></span></div>`).join('')}</div></div>`;
+    const big=el.querySelector('.bd-big'), date=el.querySelector('.bd-date'), sub=el.querySelector('.bd-sub'), bar=el.querySelector('.bd-bar i');
+    const rows=[...el.querySelectorAll('.bd-row')].map((n,i)=>({n,dot:n.querySelector('.bd-dot'),off:n.querySelector('.bd-off'),day:n.querySelector('.bd-day'),time:n.querySelector('.bd-time'),tz:cities[i][1],target:null,t0:0}));
+    const head={time:big,target:null,t0:0};
+    let key='';
+    const fmt=(d,zone)=>{ const o={timeZone:zone,hour:'numeric',minute:'2-digit',hour12:!state.h24}; if(state.h24) o.hourCycle='h23'; const parts=new Intl.DateTimeFormat('en-US',o).formatToParts(d); const g=k=>(parts.find(x=>x.type===k)||{}).value||''; let h=g('hour'); if(state.h24) h=h.padStart(2,'0'); return {t:h+':'+g('minute'),ap:g('dayPeriod')}; };
+    const ymd=(d,zone)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+    const hourIn=(d,zone)=>+new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'numeric',hourCycle:'h23'}).format(d);
+    const offMin=(d,zone)=>{ const a=new Date(d.toLocaleString('en-US',{timeZone:zone})), b=new Date(d.toLocaleString('en-US',{timeZone:tz})); return Math.round((a-b)/60000); };
+    const scramble=(obj,t,i)=>{ if(!obj.target) return; const e=t-obj.t0; if(e<0) return; const s=obj.target; let out='';
+      for(let j=0;j<s.length;j++){ const ch=s[j]; out+=(/\d/.test(ch)&&e<160+j*70&&!reduce)?String((Math.random()*10)|0):ch; }
+      obj.time.textContent=out; if(e>160+s.length*70||reduce){ obj.time.textContent=s; obj.target=null; } };
+    return {
+      frame(p,t){
+        const k=p.digits+state.h24;
+        if(k!==key){ const first=!key; key=k; const d=p.d, lf=fmt(d,tz);
+          head.target=lf.t; head.t0=first?t-9999:t;
+          sub.textContent=(state.h24?'':lf.ap+'  ·  ')+'UTC'+(()=>{ const m=-d.getTimezoneOffset(); return (m>=0?'+':'-')+Math.floor(Math.abs(m)/60)+(Math.abs(m)%60?':'+pad(Math.abs(m)%60):''); })();
+          date.textContent=d.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'long'}).toUpperCase().replace(',','');
+          const today=ymd(d,tz);
+          rows.forEach((r,i)=>{ const f=fmt(d,r.tz), om=offMin(d,r.tz), dd=ymd(d,r.tz);
+            r.target=f.t+(state.h24?'':' '+f.ap); r.t0=first?t-9999:t+120+i*90;
+            r.off.textContent=(om>=0?'+':'−')+Math.floor(Math.abs(om)/60)+'h'+(Math.abs(om)%60?' '+(Math.abs(om)%60)+'m':'');
+            r.day.textContent=dd>today?'TOMORROW':dd<today?'YESTERDAY':'TODAY';
+            const hr=hourIn(d,r.tz); r.dot.classList.toggle('on',hr>=9&&hr<18); });
+        }
+        scramble(head,t,0); rows.forEach((r,i)=>scramble(r,t,i+1));
+        bar.style.transform=`scaleX(${((p.s+p.ms/1000)/60).toFixed(4)})`;
+      },
+      destroy(){}
+    };
+  }
+};
+
 /* ================= app ================= */
-const STYLES=[Hinge,Chorus,Breath,Lumen,Prose,Slice,Poster,Module];
+const STYLES=[Hinge,Chorus,Breath,Lumen,Prose,Slice,Poster,Module,Ticker,Echo,Shutter,Specimen,Board];
 const screen=document.getElementById('screen'), device=document.getElementById('device'), list=document.getElementById('styles'), finish=document.getElementById('finish');
 list.innerHTML=STYLES.map(s=>`<button type="button" class="card" id="card-${s.id}" data-id="${s.id}" aria-pressed="false"><span class="nm">${s.name}${s.isNew?'<span class="tag">New</span>':''}</span><span class="ln">${s.line}</span><span class="insp"><b>After</b>${s.insp}</span></button>`).join('');
 let active=null, S=null;

@@ -2,15 +2,15 @@
 
 Nov 8, 2026 · @Ashik
 
-Quiet Hours is a free, open source macOS screensaver with eight clock styles: Hinge, Chorus, Breath, Lumen, Prose, Slice, Poster and Module. It ships as eight signed and notarized savers, one per style ("Quiet Hours – Hinge" and so on), in one download on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
+Quiet Hours is a free, open source macOS screensaver with thirteen clock styles: Hinge, Chorus, Breath, Lumen, Prose, Slice, Poster, Module, Ticker, Echo, Shutter, Specimen and Board. It ships as signed and notarized savers, one per style ("Quiet Hours – Hinge" and so on), in one download on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
 
 ## Goals and non-goals
 
 **Goals**
 
-1. Eight clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
+1. Thirteen clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
 2. Every style follows macOS light or dark mode by default, with a manual override.
-3. One download from GitHub Releases holding eight `.saver` files, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
+3. One download from GitHub Releases holding one `.saver` file per style, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
 4. Runs on Apple Silicon and Intel Macs, macOS 12 Monterey and later.
 5. Quiet on resources: under 10% of one CPU core on an M-series Mac at 60 fps, no memory growth over an 8-hour run.
 6. Clean open source repo: MIT license, README with GIFs, one-command build.
@@ -95,9 +95,9 @@ The time as one sentence, set large like a page of a book.
 | 12:30 | It's half past *twelve* in the afternoon. |
 | 11:35 | It's twenty-five to *noon*. |
 
-### Shared look for Slice, Poster and Module
+### Shared look for Slice, Poster, Module, Ticker, Echo, Shutter, Specimen and Board
 
-These three share one palette and one accent. Night: radial background from #17171b to #08080a, ink #efebe2, accent amber #f0b35e. Paper: radial background from #f3f0e9 to #ddd7cb, ink #161514, accent ink blue #2b4c7e. Numerals use Anybody at weight 800.
+These eight styles share one palette and one accent. Night: radial background from #17171b to #08080a, ink #efebe2, accent amber #f0b35e. Paper: radial background from #f3f0e9 to #ddd7cb, ink #161514, accent ink blue #2b4c7e. Numerals use Anybody at weight 800.
 
 ### Slice
 
@@ -150,6 +150,54 @@ Numerals built on a 3 x 5 grid of tiles from squares and quarter circles, Bauhau
 4 #.# #.# d## ..# ..#      9 a#b #.# d## ..# ##c
 ```
 
+### Ticker
+
+The time and date as one enormous line of type, scrolling endlessly like a news ticker.
+
+- Main line: Anybody 800 condensed at 46% of screen height, centred vertically, scrolling left at 6% of screen width per second. The stream repeats time (solid ink), an accent dot (radius 8.5% of the type size), the date in outline (stroke 1.2% of type size, e.g. "SUNDAY 08 NOV"), another dot.
+- New minutes: each item's text is fixed when it enters from the right, so new times arrive on the line while older ones scroll away.
+- Side tickers: two letter-spaced mono lines ("QUIET HOURS / date / time AM/PM") at 11% and 92% of height, ink at 42%, scrolling the opposite way at a third of the speed, each with a hairline rule.
+- Seconds: when on, the main time item includes seconds.
+
+### Echo
+
+Big numerals with six outline echoes stacked behind them.
+
+- Layers: one solid ink numeral in front, six accent outlines behind (stroke 0.7% of numeral size), each offset by 2.4% of numeral size per layer and fading towards the back.
+- Orbit: the offset direction rotates once a minute like a moving light source, which makes the extrusion a seconds hand.
+- Change: each layer swaps 70 ms after the one in front of it; a swap slides the old digit up and out and the new one up from below over 420 ms, exponential in-out. When several digits change, each starts 110 ms after the previous.
+- Size: numerals fill up to 52% of height or 80% of width, whichever is smaller.
+
+### Shutter
+
+The time behind a camera iris.
+
+- Iris: seven blades. At rest the aperture is 86% of half the screen diagonal, so only the blade tips show in the corners, breathing by ±1.8% on a slow cycle and turning very slowly.
+- Blades: each blade is the region between two neighbouring aperture edges extended outward. Alternate blades are 10% darker; edges get a thin dark line. Rest colour is a quiet tone (#1d1e23 at night, #d0c9bb on paper), blending to the accent as the iris closes.
+- Change: close over 380 ms (cubic ease-in) while rotating about 63°, hold closed until 540 ms (the time swaps at 460 ms, hidden), then reopen over 700 ms (exponential ease-out).
+- Numerals: Anybody 800, up to 46% of height or 74% of width, centred under the iris.
+
+### Specimen
+
+The time set twelve times as a type specimen sheet.
+
+- Grid: 4 columns x 3 rows of ruled cells under a mono header ("QUIET HOURS / SPECIMEN / ANYBODY VARIABLE" and the date).
+- Axes: columns set width 55, 84, 114, 144; rows set weight 220, 520, 820. A weight wave of ±150 ripples diagonally across the sheet (about 7 s period).
+- Labels: each cell shows its live axis values in small mono ("WDTH 84 · WGHT 531").
+- Seconds: one cell at a time turns accent, moving through all twelve across the minute.
+- Change: cells update in reading order, 75 ms apart; each fades and rises out, then fades and rises in over 460 ms.
+
+### Board
+
+A Swiss timetable of world time.
+
+- Header: local time very large (Anybody 800 at width 78), with the local city from the system time zone, the date, AM/PM and UTC offset in mono on the right.
+- Seconds bar: an accent bar under the header fills across the minute.
+- Rows: six cities (London, New York, San Francisco, Berlin, Tokyo, Sydney, with Dubai as a substitute if one matches the local zone), each with city name, offset from local ("−5h 30m"), day relative to local (TODAY, TOMORROW, YESTERDAY) and time.
+- Working hours: a small dot before each city turns accent when it's between 09:00 and 18:00 there.
+- Change: the header and then each row, 90 ms apart, scramble their digits through random numbers and settle left to right (70 ms per character).
+- Time zones come from the system time zone database, so daylight saving is always correct.
+
 ## Appearance and options
 
 Every style defaults to **Auto**: it shows its dark finish when macOS is in dark mode and its light finish in light mode, and switches live if the mode changes while the saver runs. The user can pin a finish per style instead.
@@ -164,6 +212,7 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 | Slice | Night: warm white ribbons, amber accent | Paper: near-black ribbons, ink blue accent |
 | Poster | Night: warm white type, amber disc | Paper: near-black type, ink blue disc |
 | Module | Night: warm white squares, amber curves | Paper: near-black squares, ink blue curves |
+| Ticker, Echo, Shutter, Specimen, Board | Night: shared palette, amber accent | Paper: shared palette, ink blue accent |
 
 **Options panel** (the saver's Options button in System Settings, `configureSheet`)
 
@@ -241,6 +290,7 @@ Releases go out on GitHub, signed with Ashik's Developer ID and notarized by App
 | Signing secrets in CI | Leaked certificate | Repository secrets only, temporary keychain in the workflow | Action: set up secrets in Phase 5 |
 | Lumen direction still open | Weakest style at launch | Built last, treated as an exploration; can ship in v1.1 if not ready | Awareness |
 | Poster's XOR knockout has no direct Core Animation equivalent | Overlaps render wrong or slowly | Render the type layer with Core Graphics using the XOR blend mode (or Metal), cached per minute and only re-rendered during drift and transitions | Action: prove it in the first step of Phase 7 |
+| Thirteen styles make v1.0 large | Release slips, quality varies between styles | Ship v1.0 after Phase 8 with the first eight styles; ship Ticker, Echo, Shutter, Specimen and Board as v1.1 | Action: decide the v1.0 cut before Phase 9 |
 
 ## Milestones
 
@@ -260,8 +310,18 @@ Releases go out on GitHub, signed with Ashik's Developer ID and notarized by App
    - Exit: all three layouts verified with a "next hour" control; overlaps knock out cleanly with no flicker.
 8. **Phase 8: Module.** Tile renderer with per-corner radii, digit patterns, diagonal morph wave, accent colon, seconds dashes, dot grid.
    - Exit: digits 0 to 9 read clearly; every change morphs tile by tile with no pops.
-9. **Phase 9: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, v1.0 release.
-   - Exit: a fresh download from GitHub installs with no Gatekeeper warning on a second Mac.
+9. **Phase 9: Ticker.** Main scrolling stream with per-item text, outline date, accent dots, counter-scrolling mono tickers.
+   - Exit: scrolls smoothly with no visible seams or jumps for an hour; new minutes enter only from the right.
+10. **Phase 10: Echo.** Layered numerals, orbiting extrusion, layer-by-layer swap cascade.
+    - Exit: the orbit completes once a minute; changes cascade front to back exactly as in the prototype.
+11. **Phase 11: Shutter.** Seven-blade iris geometry, breathing rest state, close, swap and reopen timeline, accent blend.
+    - Exit: blades never show gaps at any aperture; the time swap is never visible.
+12. **Phase 12: Specimen.** Ruled grid, per-cell axis settings, weight wave, live axis labels, seconds cell, cascade.
+    - Exit: width and weight axes visibly change across the sheet with the bundled Anybody; 60 fps full screen.
+13. **Phase 13: Board.** Header, seconds bar, city rows from the system time zone database, working-hours dots, digit scramble.
+    - Exit: times, offsets and day labels are correct for every city, including across a daylight-saving change (unit-tested with fixed dates).
+14. **Phase 14: Options panel and release.** `configureSheet` with live preview, GitHub Actions signing and notarization, README with GIFs, release.
+    - Exit: a fresh download from GitHub installs with no Gatekeeper warning on a second Mac.
 
 ## Claude Code kickoff prompt
 
@@ -359,3 +419,22 @@ Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to 7 are done
 Plan first and wait for my OK. Build in small steps with xcodebuild after each. Finish with a test checklist against the Phase 8 exit criteria and a git commit.
 ```
 
+**Phases 9 to 13 prompt** (one per phase; replace N and STYLE, and add that style's focus line from the table below):
+
+```text
+Read CLAUDE.md, docs/PRD.md and reference/prototype.html. Phases 1 to N-1 are done. Build Phase N: the STYLE style.
+
+- Match the PRD's STYLE spec and the prototype's STYLE exactly: sizes, timings, easing, palette and both finishes via Auto appearance.
+- FOCUS LINE FROM THE TABLE
+- Must hold 60 fps full screen and stay quiet when nothing is moving.
+
+Plan first and wait for my OK. Build in small steps with xcodebuild after each. Finish with a test checklist against the Phase N exit criteria and a git commit.
+```
+
+| Phase | Style | Focus line to add |
+| --- | --- | --- |
+| 9 | Ticker | Fix each item's text when it enters from the right; measure items with Core Text and scroll with a sub-pixel offset so there are no seams. |
+| 10 | Echo | Draw the six outline layers as cached glyph paths; drive each layer's swap with its own 70 ms delay so the cascade reads front to back. |
+| 11 | Shutter | Build the blades from the aperture polygon's extended edges; hide the time swap entirely while the iris is closed. |
+| 12 | Specimen | Use Core Text font variation attributes for the width and weight axes per cell; confirm the bundled Anybody exposes both axes before building the grid. |
+| 13 | Board | Use TimeZone and Calendar for every city; unit-test offsets and day labels with fixed dates either side of a daylight-saving change. |
