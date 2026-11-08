@@ -114,4 +114,34 @@ final class ProseLayoutTests: XCTestCase {
         let italic = ProseLayout.shape(ProseToken(text: "eight", isHourWord: true), fontSize: 100)
         XCTAssertEqual(CTFontCopyPostScriptName(italic.glyphs[0].font) as String, "InstrumentSerif-Italic")
     }
+
+    /// Three box passes stand in for the soft glyphs' Gaussian: odd widths, and the summed box
+    /// variance ((w² − 1) / 12 each) within 10% of σ².
+    func testSoftBlurBoxSizesMatchGaussian() {
+        for sigma in [0.8, 1.5, 2.6, 4.0, 7.3] {
+            let sizes = ProseRenderer.boxSizes(sigma: sigma, passes: 3)
+            XCTAssertEqual(sizes.count, 3)
+            XCTAssertTrue(sizes.allSatisfy { $0 % 2 == 1 && $0 >= 1 })
+            let variance = sizes.map { Double($0 * $0 - 1) / 12 }.reduce(0, +)
+            XCTAssertEqual(variance, sigma * sigma, accuracy: sigma * sigma * 0.1 + 0.35, "σ = \(sigma)")
+        }
+    }
+
+    /// The blur spreads a single opaque pixel into a smooth, symmetric, energy-preserving bump.
+    func testSoftBlurSpreadsAPixel() throws {
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: 41, height: 41, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1))
+        ctx.fill(CGRect(x: 20, y: 20, width: 1, height: 1))
+        let image = try XCTUnwrap(ProseRenderer.gaussianBlurred(ctx, sigma: 3))
+        let data = try XCTUnwrap(image.dataProvider?.data) as Data
+        let row = image.bytesPerRow
+        func alpha(_ x: Int, _ y: Int) -> Int { Int(data[y * row + x * 4 + 3]) }
+        XCTAssertLessThan(alpha(20, 20), 255)
+        XCTAssertGreaterThan(alpha(20, 20), alpha(23, 20))
+        XCTAssertGreaterThan(alpha(23, 20), 0)
+        XCTAssertEqual(alpha(17, 20), alpha(23, 20), accuracy: 1)
+        XCTAssertEqual(alpha(0, 0), 0)
+    }
 }

@@ -1,5 +1,5 @@
+import Accelerate
 import AppKit
-import CoreImage
 import QuartzCore
 
 /// Prose: the time as one sentence, set large like a page of a book.
@@ -74,7 +74,6 @@ final class ProseRenderer: ClockStyle {
     private var inTotal: Double = 0
 
     private var softCache: [String: (CGImage, CGRect)] = [:]
-    private lazy var ciContext = CIContext(options: [.cacheIntermediates: false])
     private var captionText = ""
 
     private var speed: Double { max(context.timeScale, 0.01) }
@@ -340,13 +339,46 @@ final class ProseRenderer: ClockStyle {
         ctx.setFillColor(palette.ink)
         var origin = CGPoint.zero
         CTFontDrawGlyphs(font, &glyph, &origin, 1, ctx)
-        guard let sharp = ctx.makeImage() else { return nil }
-        let input = CIImage(cgImage: sharp)
-        let blurred = input.applyingGaussianBlur(sigma: Double(sigma * s)).cropped(to: input.extent)
-        guard let image = ciContext.createCGImage(blurred, from: input.extent) else { return nil }
+        // Blurred on the CPU (Accelerate): Core Image sets up ~70 MB of graphics buffers for every
+        // new Prose instance, even with its software renderer, for a few tiny images.
+        guard let image = Self.gaussianBlurred(ctx, sigma: Double(sigma * s)) else { return nil }
         let frame = CGRect(x: rect.minX, y: -rect.maxY, width: rect.width, height: rect.height)
         softCache[key] = (image, frame)
         return (image, frame)
+    }
+
+    /// Gaussian blur of a bitmap context's pixels as three box passes (sizes from the standard
+    /// box-for-Gaussian fit), edges extended (the glyph images are padded with 3σ of transparency).
+    static func gaussianBlurred(_ ctx: CGContext, sigma: Double) -> CGImage? {
+        guard sigma > 0.2 else { return ctx.makeImage() }
+        guard let data = ctx.data,
+              let out = CGContext(data: nil, width: ctx.width, height: ctx.height, bitsPerComponent: 8,
+                                  bytesPerRow: ctx.bytesPerRow, space: ctx.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: ctx.bitmapInfo.rawValue),
+              let outData = out.data else { return nil }
+        var a = vImage_Buffer(data: data, height: vImagePixelCount(ctx.height), width: vImagePixelCount(ctx.width), rowBytes: ctx.bytesPerRow)
+        var b = vImage_Buffer(data: outData, height: a.height, width: a.width, rowBytes: ctx.bytesPerRow)
+        let sizes = boxSizes(sigma: sigma, passes: 3)
+        for (i, k) in sizes.enumerated() {
+            let n = UInt32(k)
+            let err = i % 2 == 0
+                ? vImageBoxConvolve_ARGB8888(&a, &b, nil, 0, 0, n, n, nil, vImage_Flags(kvImageEdgeExtend))
+                : vImageBoxConvolve_ARGB8888(&b, &a, nil, 0, 0, n, n, nil, vImage_Flags(kvImageEdgeExtend))
+            guard err == kvImageNoError else { return nil }
+        }
+        return sizes.count % 2 == 1 ? out.makeImage() : ctx.makeImage()
+    }
+
+    /// Odd box widths whose repeated application approximates a Gaussian of `sigma` pixels.
+    static func boxSizes(sigma: Double, passes n: Int) -> [Int] {
+        let ideal = (12 * sigma * sigma / Double(n) + 1).squareRoot()
+        var lower = Int(ideal.rounded(.down))
+        if lower % 2 == 0 { lower -= 1 }
+        lower = max(lower, 1)
+        let upper = lower + 2
+        let l = Double(lower)
+        let m = Int(((12 * sigma * sigma - Double(n) * l * l - 4 * Double(n) * l - 3 * Double(n)) / (-4 * l - 4)).rounded())
+        return (0..<n).map { $0 < m ? lower : upper }
     }
 
     // MARK: Chrome

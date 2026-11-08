@@ -116,7 +116,7 @@ then 2 min of stop/start every 2 s, footprint sampled every 20 s) and `scripts/e
 | Chorus | 29 | none | 0 | 2.4 |
 | Breath | 28 | none | 0 | 7.7 |
 | Lumen | 250 (GPU particle buffers) | none | 0 | 7.2 |
-| Prose | 35 | none | 0 (70 MB graphics spike per start, see below) | 1.0 |
+| Prose | 30 (was 35–38) | none | 0 (was a 70 MB spike per start, fixed) | 1.0 |
 | Slice | 41 | none | −11 | 3.6 |
 | Poster | 29 | none | 0 | 2.4 (was ~5) |
 | Module | 28 | none | 0 | 1.2 |
@@ -129,10 +129,11 @@ then 2 min of stop/start every 2 s, footprint sampled every 20 s) and `scripts/e
 No crashes. The first run's churn phase switched windows to another style (the view re-reads the
 shared Preview setting on restart); fixed with `-QHStyle` and every style re-run with it.
 
-Open: each time Prose starts, ~70 MB of "owned physical footprint (graphics)" is allocated and
-released within about a second (seen at 400×300 with 1 s sampling; Hinge, Module and Board show no
-spike). Not cumulative, but worth finding: likely a large transient layer backing store in
-`start`/`layout` (background gradient over `Room.frame`, or the glyph layers' first rebuild). CPU excludes compositing (WindowServer).
+Prose: each start allocated ~70 MB of "owned physical footprint (graphics)" for about a second.
+The cause was Core Image (blurring the soft glyph images), which sets up graphics buffers per
+context even with its software renderer. Now a CPU Gaussian (Accelerate, three box passes,
+unit-tested; alpha within 1/255 of Core Image on average, 13/255 at worst on blur edges): no
+spike, and steady memory 37 → 30 MB. CPU excludes compositing (WindowServer).
 
 Fixed: Specimen and Poster built a `DateFormatter` every frame (~1 ms each, ICU setup); now one
 cached formatter, text rebuilt once a second. Specimen also skips Core Text shaping for its
