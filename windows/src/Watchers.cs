@@ -1,32 +1,35 @@
 using System;
-using System.Collections.Generic;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
 namespace QuietHours.Windows
 {
-    /// Ends the full-screen saver on keyboard, mouse or touch input, whichever window (or the
-    /// WebView2 child process) has focus. The page reports input too; this is the backstop.
-    ///   - the cursor moving more than a few pixels from where it started;
-    ///   - any other input (keys, buttons, wheel): GetLastInputInfo advances while the cursor
-    ///     stays put.
+    /// Ends the full-screen saver on keyboard or mouse input, whichever window or process has
+    /// focus. The page reports input too (keys, buttons, wheel, touch); this is the backstop:
+    ///   - the cursor ends up more than a few pixels from where it settled;
+    ///   - a key or mouse button is pressed (GetLastInputInfo advanced and a key state is set).
+    /// Mouse jitter alone advances GetLastInputInfo too, but neither moves the cursor far nor
+    /// sets a key state, so it never ends the saver.
     sealed class InputWatcher : IDisposable
     {
-        const int MoveThreshold = 12;          // physical pixels, ignores a nudge of the desk
-        static readonly TimeSpan Grace = TimeSpan.FromMilliseconds(600);   // e.g. the Preview click's mouse-up
+        const int MoveThreshold = 12;   // physical pixels: ignores a nudged desk or a noisy sensor
+        // Swallows whatever started the saver: the mouse-up of Settings' Preview button, a key
+        // release, the cursor settling.
+        static readonly TimeSpan Grace = TimeSpan.FromMilliseconds(750);
 
         readonly Timer timer = new Timer { Interval = 50 };
         readonly Action exit;
         readonly DateTime started = DateTime.UtcNow;
-        Native.POINT origin, previous;
+        readonly bool[] held = new bool[256];
+        Native.POINT origin;
         uint lastInput;
 
         public InputWatcher(Action exit)
         {
             this.exit = exit;
             Native.GetCursorPos(out origin);
-            previous = origin;
             lastInput = Native.LastInputTick();
+            Native.AnyKeyOrButtonPressed(held, record: true);   // also clears the "pressed since" bits
             timer.Tick += Check;
             timer.Start();
         }
@@ -35,24 +38,24 @@ namespace QuietHours.Windows
         {
             Native.GetCursorPos(out var p);
             uint input = Native.LastInputTick();
-            bool settled = DateTime.UtcNow - started > Grace;
 
-            if (!settled)
+            if (DateTime.UtcNow - started < Grace)
             {
-                origin = p;        // whatever happened during the grace period is the new baseline
+                origin = p;            // the new baseline
                 lastInput = input;
+                Native.AnyKeyOrButtonPressed(held, record: true);
+                return;
             }
-            else if (Math.Abs(p.X - origin.X) > MoveThreshold || Math.Abs(p.Y - origin.Y) > MoveThreshold)
+            if (Math.Abs(p.X - origin.X) > MoveThreshold || Math.Abs(p.Y - origin.Y) > MoveThreshold)
             {
                 Fire();
                 return;
             }
-            else if (input != lastInput)
+            if (input != lastInput)
             {
                 lastInput = input;
-                if (p.X == previous.X && p.Y == previous.Y) { Fire(); return; }
+                if (Native.AnyKeyOrButtonPressed(held)) Fire();
             }
-            previous = p;
         }
 
         void Fire()
@@ -65,17 +68,12 @@ namespace QuietHours.Windows
     }
 
     /// Follows the Windows app theme and time format while the saver runs
-    /// (WM_SETTINGCHANGE "ImmersiveColorSet" arrives as UserPreferenceChanged/General).
+    /// (WM_SETTINGCHANGE "ImmersiveColorSet" arrives as UserPreferenceChanged/General, "intl" as Locale).
     static class SystemWatcher
     {
-        static IReadOnlyList<SaverForm> forms;
         static Timer recheck;
 
-        public static void Start(IReadOnlyList<SaverForm> list)
-        {
-            forms = list;
-            SystemEvents.UserPreferenceChanged += OnChanged;
-        }
+        public static void Start() => SystemEvents.UserPreferenceChanged += OnChanged;
 
         public static void Stop()
         {
@@ -99,8 +97,43 @@ namespace QuietHours.Windows
 
         static void Push()
         {
-            foreach (var f in forms)
+            foreach (var f in SaverForm.Open.ToArray())
                 if (!f.IsDisposed) f.PushSystemPrefs();
+        }
+    }
+
+    /// Displays added, removed or resized while the saver runs. DisplayPort monitors vanish
+    /// when they sleep and come back on wake, so this matters even without docking.
+    static class DisplayWatcher
+    {
+        static Action onChange;
+        static Timer settle;
+
+        public static void Start(Action action)
+        {
+            onChange = action;
+            SystemEvents.DisplaySettingsChanged += OnChanged;
+        }
+
+        public static void Stop()
+        {
+            SystemEvents.DisplaySettingsChanged -= OnChanged;
+            settle?.Dispose();
+            settle = null;
+        }
+
+        static void OnChanged(object sender, EventArgs e)
+        {
+            // Several changes usually arrive together; act once they settle.
+            settle?.Dispose();
+            settle = new Timer { Interval = 500 };
+            settle.Tick += (s, a) =>
+            {
+                settle.Stop();
+                try { onChange?.Invoke(); }
+                catch (Exception ex) { Log.Error("Displays", ex); }
+            };
+            settle.Start();
         }
     }
 }

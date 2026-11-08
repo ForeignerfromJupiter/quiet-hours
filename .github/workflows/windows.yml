@@ -1,7 +1,7 @@
 name: Windows savers
 
-# Builds the eight Windows .scr files (windows/README.md). Only runs when the Windows port or
-# what it is built from changes, or by hand.
+# Builds the eight Windows .scr files (windows/README.md) from a clean checkout and uploads them
+# for testers. Only runs when the Windows port or what it is built from changes, or by hand.
 on:
   workflow_dispatch:
   push:
@@ -23,10 +23,17 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to full commit SHAs (tag in the comment) so a moved tag can't change the build.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: "8.0.x"
 
@@ -44,10 +51,23 @@ jobs:
         shell: pwsh
         run: windows/build.ps1
 
+      - name: Check the output
+        shell: pwsh
+        run: |
+          $styles = "Hinge","Chorus","Breath","Lumen","Prose","Slice","Poster","Module"
+          foreach ($s in $styles) {
+            $f = Get-Item -LiteralPath "windows/dist/Quiet Hours - $s.scr"
+            if ($f.Length -lt 500KB) { throw "$($f.Name) is suspiciously small ($($f.Length) bytes)" }
+            $v = $f.VersionInfo
+            if ($v.FileDescription -notlike "*$s*") { throw "$($f.Name): unexpected description '$($v.FileDescription)'" }
+            "{0,-28} {1,10:N0} bytes  {2}" -f $f.Name, $f.Length, $v.FileDescription
+          }
+
       # Signing goes here once a certificate exists (windows/README.md → Code signing).
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: quiet-hours-windows
           path: windows/dist/
           if-no-files-found: error
+          retention-days: 30

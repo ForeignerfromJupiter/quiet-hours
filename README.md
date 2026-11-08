@@ -24,7 +24,8 @@ Silicon and Intel. To remove one, right-click it in Screen Saver settings and ch
 ## Windows (experimental)
 
 There is an early Windows version of all eight styles, built from the same designs. It is not
-released yet, and it hasn't been tested on a Windows PC. See [windows/README.md](windows/README.md).
+released yet, and it hasn't been tested on a Windows PC. To help test it, see
+[windows/README.md → For testers](windows/README.md#for-testers).
 
 **Expect a warning.** The Windows builds aren't code-signed yet, because signing needs a paid
 certificate. When you open one, Windows may show **"Windows protected your PC"**. Click

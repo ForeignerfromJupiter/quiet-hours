@@ -6,7 +6,7 @@
 @font-face{font-family:"Instrument Serif";src:url("fonts/InstrumentSerif-Regular.ttf") format("truetype");font-style:normal;font-display:block}
 @font-face{font-family:"Instrument Serif";src:url("fonts/InstrumentSerif-Italic.ttf") format("truetype");font-style:italic;font-display:block}
 /* Labels: the prototype asks for Geist Mono (not bundled); alias it to the system mono. */
-@font-face{font-family:"Geist Mono";src:local("Cascadia Mono"),local("CascadiaMono-Regular"),local("Consolas"),local("SF Mono"),local("Menlo")}
+@font-face{font-family:"Geist Mono";src:local("Cascadia Mono Regular"),local("CascadiaMono-Regular"),local("Consolas"),local("SFMono-Regular"),local("Menlo-Regular")}
 
 :root{
   --f-display:"Anybody","Arial Narrow",system-ui,sans-serif;

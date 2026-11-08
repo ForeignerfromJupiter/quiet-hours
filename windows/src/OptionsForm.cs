@@ -13,8 +13,8 @@ namespace QuietHours.Windows
 
         readonly StyleInfo style;
         readonly Settings settings;
-        readonly ComboBox finish = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
-        readonly ComboBox hours = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
+        readonly ComboBox finish = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+        readonly ComboBox hours = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         readonly CheckBox seconds = new CheckBox { Text = "Show seconds", AutoSize = true };
         readonly CheckBox pureBlack = new CheckBox { Text = "Pure black in dark mode (best for OLED screens)", AutoSize = true };
 
@@ -50,6 +50,8 @@ namespace QuietHours.Windows
                 "24-hour",
             });
             hours.SelectedIndex = (int)settings.HourCycle;
+            FitWidth(finish);
+            FitWidth(hours);
             seconds.Checked = settings.ShowSeconds;
             pureBlack.Checked = settings.PureBlack;
 
@@ -61,7 +63,8 @@ namespace QuietHours.Windows
             AddRow(grid, "", seconds);
             AddRow(grid, "", pureBlack);
 
-            if (WebViewHostProbe.MissingRuntime())
+            WebViewHost.PrepareLoader();
+            if (WebViewHost.RuntimeMissing())
             {
                 var link = new LinkLabel
                 {
@@ -91,6 +94,16 @@ namespace QuietHours.Windows
             ok.Click += (s, e) => Save();
         }
 
+        /// Wide enough for the longest item at any DPI (the font is already DPI-scaled).
+        void FitWidth(ComboBox box)
+        {
+            int widest = 0;
+            foreach (object item in box.Items)
+                widest = Math.Max(widest, TextRenderer.MeasureText(item.ToString(), Font).Width);
+            box.Font = Font;
+            box.Width = widest + SystemInformation.VerticalScrollBarWidth + 24;
+        }
+
         static void AddRow(TableLayoutPanel grid, string label, Control control)
         {
             int row = grid.RowCount++;
@@ -114,15 +127,6 @@ namespace QuietHours.Windows
                 Log.Error("Settings.Save", e);
                 MessageBox.Show(this, "Could not save settings: " + e.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-        }
-    }
-
-    static class WebViewHostProbe
-    {
-        public static bool MissingRuntime()
-        {
-            WebViewHost.PrepareLoader();
-            return WebViewHost.RuntimeVersion() == null;
         }
     }
 }

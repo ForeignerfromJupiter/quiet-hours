@@ -10,7 +10,7 @@ namespace QuietHours.Windows
         public static string Folder { get; } =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Quiet Hours");
 
-        static string FilePath => Path.Combine(Folder, "quiethours.log");
+        public static string FilePath => Path.Combine(Folder, "quiethours.log");
 
         public static void Info(string message) => Write("info", message);
 

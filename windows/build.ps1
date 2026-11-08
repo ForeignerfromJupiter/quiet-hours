@@ -34,5 +34,6 @@ foreach ($style in $Styles) {
 Copy-Item (Join-Path $repo "Resources/Fonts/OFL-*.txt") $dist -Force
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $dist "LICENSE.txt") -Force
 Copy-Item (Join-Path $here "install.ps1") $dist -Force
+Copy-Item -LiteralPath (Join-Path $here "READ ME FIRST.txt") $dist -Force
 
 Get-ChildItem $dist | Format-Table Name, Length

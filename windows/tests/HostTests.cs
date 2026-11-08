@@ -15,6 +15,13 @@ public class LaunchArgsTests
     [InlineData(new[] { "/c" }, "Configure", 0)]
     [InlineData(new[] { "/w" }, "Window", 0)]
     [InlineData(new[] { "/a", "99" }, "Configure", 99)]
+    [InlineData(new[] { "/P", "1234" }, "Preview", 1234)]
+    [InlineData(new[] { "/p1234" }, "Preview", 1234)]
+    [InlineData(new[] { "/c:0" }, "Configure", 0)]
+    [InlineData(new[] { "/C:-5" }, "Configure", 0)]
+    [InlineData(new[] { "" }, "Configure", 0)]
+    [InlineData(new[] { "/s", "/extra" }, "FullScreen", 0)]
+    [InlineData(new[] { " /S " }, "FullScreen", 0)]
     public void Parses(string[] args, string mode, long hwnd)
     {
         var a = LaunchArgs.Parse(args);

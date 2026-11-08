@@ -17,11 +17,14 @@ namespace QuietHours.Windows
 
         static Task<CoreWebView2Environment> environment;
         static Dictionary<string, byte[]> files;
+        static bool loaderReady;
 
         /// Extract WebView2Loader.dll for this process's architecture to
         /// %LOCALAPPDATA%\Quiet Hours\bin\<version>\<arch>\ and point WebView2 at it.
         public static void PrepareLoader()
         {
+            if (loaderReady) return;
+            loaderReady = true;
             try
             {
                 string arch = ProcessArchitecture();
@@ -36,10 +39,20 @@ namespace QuietHours.Windows
                     {
                         Directory.CreateDirectory(dir);
                         string tmp = dll + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                        using (var dst = File.Create(tmp)) src.CopyTo(dst);
-                        try { File.Copy(tmp, dll, true); }
-                        catch (IOException) { /* another saver process wrote it first */ }
-                        finally { File.Delete(tmp); }
+                        try
+                        {
+                            using (var dst = File.Create(tmp)) src.CopyTo(dst);
+                            File.Copy(tmp, dll, true);
+                        }
+                        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+                        {
+                            // Another saver process (preview + full screen) wrote or loaded it first.
+                            Log.Info("Loader copy skipped: " + e.Message);
+                        }
+                        finally
+                        {
+                            try { File.Delete(tmp); } catch (Exception) { /* best effort */ }
+                        }
                     }
                     CoreWebView2Environment.SetLoaderDllFolderPath(dir);
                 }
@@ -62,15 +75,32 @@ namespace QuietHours.Windows
             }
         }
 
-        /// Installed Evergreen runtime version, or null when WebView2 is missing.
-        public static string RuntimeVersion()
+        /// True only when WebView2 is definitely not installed (not for other loader errors).
+        public static bool RuntimeMissing()
         {
-            try { return CoreWebView2Environment.GetAvailableBrowserVersionString(); }
-            catch (Exception) { return null; }
+            try
+            {
+                string v = CoreWebView2Environment.GetAvailableBrowserVersionString();
+                Log.Info("WebView2 runtime " + v);
+                return string.IsNullOrEmpty(v);
+            }
+            catch (WebView2RuntimeNotFoundException) { return true; }
+            catch (Exception e) { Log.Error("RuntimeMissing", e); return false; }
         }
 
-        public static Task<CoreWebView2Environment> Environment() =>
-            environment ??= CoreWebView2Environment.CreateAsync(null, Path.Combine(Log.Folder, "WebView2"), null);
+        /// One environment per process. The switches cut Chromium's own background traffic
+        /// (the page itself can't reach the network: see ServePage); crash dumps stay on disk
+        /// instead of being uploaded.
+        public static Task<CoreWebView2Environment> Environment()
+        {
+            if (environment != null) return environment;
+            var options = new CoreWebView2EnvironmentOptions(
+                "--disable-background-networking --disable-component-update --disable-domain-reliability --no-pings")
+            {
+                IsCustomCrashReportingEnabled = true,
+            };
+            return environment = CoreWebView2Environment.CreateAsync(null, Path.Combine(Log.Folder, "WebView2"), options);
+        }
 
         /// Serve the page from embedded resources and refuse everything else: the saver never
         /// touches the network.

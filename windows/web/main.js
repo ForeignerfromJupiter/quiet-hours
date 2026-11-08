@@ -87,10 +87,12 @@
 
   /* ---- Exit on input (full screen only). The host also watches the cursor and GetLastInputInfo. ---- */
   if (cfg.mode === "s") {
-    const exit = () => { if (host) host.postMessage("exit"); };
+    // Grace period: ignore whatever started the saver (a key release, the Preview click).
+    const armedAt = performance.now() + 750;
+    const exit = () => { if (host && performance.now() > armedAt) host.postMessage("exit"); };
     let origin = null;
     addEventListener("mousemove", (e) => {
-      if (!origin) { origin = [e.screenX, e.screenY]; return; }
+      if (!origin || performance.now() < armedAt) { origin = [e.screenX, e.screenY]; return; }
       if (Math.hypot(e.screenX - origin[0], e.screenY - origin[1]) > 10) exit();
     }, true);
     for (const type of ["keydown", "mousedown", "pointerdown", "wheel", "touchstart"]) addEventListener(type, exit, true);
@@ -135,7 +137,8 @@
 
   /* Wait for the bundled fonts: Slice and Lumen rasterise glyphs once and would keep a fallback. */
   const fonts = ['800 100px "Anybody"', '100px "Instrument Serif"', 'italic 100px "Instrument Serif"', '500 20px "Geist Mono"'];
-  const ready = Promise.all(fonts.map((f) => document.fonts.load(f))).catch(() => {});
+  // Each font on its own: a missing system mono must not cut the wait for Anybody short.
+  const ready = Promise.all(fonts.map((f) => document.fonts.load(f).catch(() => {})));
   const timeout = new Promise((r) => setTimeout(r, 2500));
   Promise.race([ready, timeout]).then(() => {
     mount();

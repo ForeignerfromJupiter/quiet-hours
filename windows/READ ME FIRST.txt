@@ -1,0 +1,38 @@
+QUIET HOURS FOR WINDOWS - TEST BUILD
+
+This is an early, untested and unsigned build. Thank you for trying it.
+Project and issues: https://github.com/ForeignerfromJupiter/quiet-hours  (see windows/README.md)
+
+
+INSTALL
+1. Make a folder that will stay put, e.g. C:\Users\<you>\AppData\Local\Programs\Quiet Hours
+   (type %LOCALAPPDATA%\Programs in the Explorer address bar, then create "Quiet Hours").
+2. Copy the .scr files into it.
+3. Right-click a .scr (e.g. "Quiet Hours - Hinge.scr") -> Install
+   (on Windows 11 it's under "Show more options").
+   Screen Saver Settings opens with it selected. "Settings..." changes its options,
+   "Preview" shows it full screen.
+   Or run:  powershell -ExecutionPolicy Bypass -File .\install.ps1 -Style Hinge
+
+WINDOWS WARNING
+Windows may say "Windows protected your PC". That's because the build isn't code-signed yet.
+Click "More info", then "Run anyway". On Windows 11 with Smart App Control turned on there is
+no "Run anyway": please report that and don't turn Smart App Control off for this.
+
+NEEDS
+Windows 10 (1903 or later) or Windows 11, with the Microsoft Edge WebView2 Runtime
+(already on Windows 11 and on up-to-date Windows 10). If it's missing, Settings... shows a link.
+
+UNINSTALL
+Screen Saver Settings -> Screen saver: (None) -> OK, then delete the .scr files.
+Or run:  powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+
+REPORT A PROBLEM
+Open an issue at https://github.com/ForeignerfromJupiter/quiet-hours/issues with:
+your Windows version (Win+R -> winver), your displays (how many, resolution, scaling),
+the style, what you did and what happened, a photo or screenshot if you can, and the
+log file:  %LOCALAPPDATA%\Quiet Hours\quiethours.log
+
+PRIVACY
+Quiet Hours collects nothing and makes no network requests. Settings stay in your registry
+(HKEY_CURRENT_USER\Software\Quiet Hours); the log file never leaves your computer.

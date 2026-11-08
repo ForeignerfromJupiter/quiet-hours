@@ -4,6 +4,81 @@ This is an exploration, not a committed phase. `docs/PRD.md` still lists Windows
 This folder holds a working prototype of all eight styles as Windows screen savers
 (`Quiet Hours - Hinge.scr` … `Quiet Hours - Module.scr`). The macOS sources are untouched.
 
+## For testers
+
+> **Untested and unsigned.** This build has never run on a real Windows PC: you are the first.
+> It isn't code-signed yet, so Windows may say **"Windows protected your PC"**. Click **More info**,
+> then **Run anyway**. Windows shows this for any program whose publisher it doesn't know yet; it
+> doesn't mean the file is harmful, and the source is all in this repository. On Windows 11 with
+> **Smart App Control** on, unsigned programs are blocked with no "Run anyway". Please report it
+> rather than turning Smart App Control off.
+
+**You need** Windows 10 (version 1903 or later) or Windows 11, on x64 or ARM64. You also need
+the Microsoft Edge WebView2 Runtime. It is already on Windows 11 and on up-to-date Windows 10;
+if it's missing, the saver says so and its **Settings…** dialog links to Microsoft's installer.
+
+**Get the build.**
+1. Open the repository's **Actions** tab → **Windows savers** → the latest green run.
+2. Under **Artifacts**, download **quiet-hours-windows**. You need to be signed in to GitHub.
+3. Before unzipping it: right-click the zip → **Properties** → tick **Unblock** → OK. Otherwise
+   every file inside keeps the "downloaded from the internet" mark.
+
+The zip holds eight `.scr` files, `install.ps1`, `READ ME FIRST.txt` and the licences.
+
+**Install.**
+1. Make a folder that will stay put, e.g. `%LOCALAPPDATA%\Programs\Quiet Hours`, and copy the
+   `.scr` files into it. Windows uses the file where it is, so don't install from Downloads.
+2. Right-click a style, e.g. `Quiet Hours - Hinge.scr`, → **Install**. On Windows 11 it's under
+   **Show more options**. Screen Saver Settings opens with it selected.
+3. **Settings…** sets its options: finish (Auto follows Windows' app mode), time format (System
+   follows your region's format), seconds, and Pure black. **Preview** runs it full screen;
+   move the mouse or press a key to end it.
+
+Windows' list only shows savers in `C:\Windows\System32`, plus the selected one. To have all eight
+in the list, use the script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Style Chorus   # just you, no admin: all eight, Chorus selected
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -AllUsers       # admin PowerShell: all eight listed
+```
+
+**Uninstall.** Screen Saver Settings → **Screen saver: (None)** → OK, then delete the `.scr`
+files. Or:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+It removes the files and selects (None) if a Quiet Hours saver was current. It also deletes the
+settings (`HKCU\Software\Quiet Hours`) and the logs and cache (`%LOCALAPPDATA%\Quiet Hours`).
+
+**What to try.** The most useful reports cover:
+- Each style in Preview and as the real screen saver (set **Wait** to 1 minute).
+- Ending it: mouse, keyboard, touch. A light knock on the desk should *not* end it.
+- More than one display, especially with different scaling (e.g. a 4K screen at 150% next to a
+  1080p screen at 100%). Every display should show the clock, sharp, edge to edge.
+- Turning a monitor off and on, or docking and undocking, while it runs.
+- The small live preview in Screen Saver Settings, and closing that dialog: no Quiet Hours
+  process should be left in Task Manager.
+- Windows' app mode (Settings → Personalization → Colors) and the time format (Settings → Time &
+  language → Region) set to Auto and System, including changing them while it runs.
+
+**Report a problem** at [github.com/ForeignerfromJupiter/quiet-hours/issues](https://github.com/ForeignerfromJupiter/quiet-hours/issues).
+Include:
+- your Windows version (Win+R → `winver`) and whether it's x64 or ARM;
+- your displays (how many, resolution, scaling);
+- the style;
+- what you did and what happened;
+- a photo or screenshot if you can;
+- the log file, `%LOCALAPPDATA%\Quiet Hours\quiethours.log`.
+
+**Privacy.** Quiet Hours collects nothing: no analytics, no accounts, no network requests. The
+page is served from inside the `.scr`, and the saver refuses every other request. WebView2's
+SmartScreen address checks, background networking and component updates are switched off, and
+crash dumps stay on your PC instead of being uploaded. Options stay in your registry. The log
+file holds only the style, launch mode and error messages, and never leaves your computer. The
+WebView2 runtime itself is a Windows component that Windows Update keeps current.
+
 ## Recommendation: a small native `.scr` host that runs the prototype's renderers in WebView2
 
 | | (a) WebView2 host, prototype JS | (b) Direct2D / DirectWrite port | (c) Rust + wgpu engine |
@@ -43,7 +118,7 @@ windows/
     SaverForm.cs          borderless top-most window (or Settings-thumbnail child) + WebView2
     WebViewHost.cs        extracts WebView2Loader.dll, one environment, serves the page from memory
     EmbeddedAssemblies.cs loads Microsoft.Web.WebView2.Core.dll from resources (single-file .scr)
-    Watchers.cs           input watcher (cursor + GetLastInputInfo); theme/time-format watcher
+    Watchers.cs           input watcher (cursor, GetLastInputInfo + key state); theme/time-format; displays
     OptionsForm.cs        Settings… dialog
     Settings.cs           HKCU\Software\Quiet Hours\<Style>: Finish, HourCycle, ShowSeconds, PureBlack
     SystemPrefs.cs        AppsUseLightTheme; the user's short-time format via GetLocaleInfoEx
@@ -55,7 +130,7 @@ windows/
   tools/extract_prototype.py   regenerates styles.gen.* from reference/prototype.html
   tools/serve.py          serves web/ like the host does, for any browser
   tests/                  xunit tests for argument parsing and 12/24h detection
-  build.ps1, install.ps1
+  build.ps1, install.ps1, READ ME FIRST.txt (shipped in the zip for testers)
 ```
 
 - **One `.scr` per style**, named like the Mac savers, with an ASCII hyphen instead of the en
@@ -66,7 +141,12 @@ windows/
   extracted to `%LOCALAPPDATA%\Quiet Hours\bin\`. The WebView2 profile lives in
   `%LOCALAPPDATA%\Quiet Hours\WebView2`.
 - **No network.** The page is served from memory at `https://quiethours.example/`, and every
-  other request gets a 404.
+  other request gets a 404. Chromium's own background traffic is switched off
+  (`--disable-background-networking --disable-component-update --disable-domain-reliability --no-pings`),
+  as are SmartScreen URL checks. Crash dumps stay local (`IsCustomCrashReportingEnabled`).
+- **Fonts** are the bundled OFL files, served from inside the `.scr`. Labels use the system's
+  Cascadia Mono or Consolas through a `local()` alias. The page waits for the fonts (at most
+  2.5 s) before its first frame, so canvas styles never cache a fallback face.
 - **Light/dark**: follows `HKCU\…\Themes\Personalize\AppsUseLightTheme` (the Windows *app* mode).
   It is re-read on `WM_SETTINGCHANGE`, and again 0.6 s later, then pushed to the page, which
   remounts when the finish is Auto.
@@ -75,16 +155,32 @@ windows/
 - **Pure black** is on by default. A dark finish's room is `#000`.
 - **Burn-in shift**: every style except Lumen gets the same Lissajous drift as
   `Room.burnInOffset`, with rooms oversized by 16 px. Both ported from `Core/Room.swift`.
-- **Exit on input** (`/s` only): the page reports keys, buttons, wheel, touch and mouse moves
-  over 10 px. Independently, the host polls the cursor (exits beyond 12 px) and
-  `GetLastInputInfo` (any input while the cursor is still), so it works whichever process has
-  focus. A 0.6 s grace period after start swallows the click that launched a preview.
-- **`/p <hwnd>`** (the Settings dialog thumbnail) becomes a child window of that HWND, runs at
-  30 fps like the macOS `isPreview` path, and quits when the parent goes away.
-- **`/c`** opens the Options dialog: finish (Auto / dark / light), time format (System / 12 / 24),
-  show seconds, Pure black. With no arguments, the saver also opens this dialog. If the
-  WebView2 runtime is missing, the dialog says so and links to Microsoft's installer. In `/s`
-  without the runtime, the screen stays black and still exits on input.
+- **Exit on input** (`/s` only). The page reports keys, buttons, wheel, touch and mouse moves
+  over 10 px. Independently, the host polls every 50 ms, so this works whichever process has
+  focus. It exits when:
+  - the cursor ends up more than 12 px from where it settled; or
+  - `GetLastInputInfo` advanced *and* a key or mouse button is down or was pressed
+    (`GetAsyncKeyState`).
+
+  Mouse jitter advances `GetLastInputInfo` but does neither of those, so it never ends the
+  saver. A 0.75 s grace period after start (host and page) swallows the click or key release
+  that launched it.
+- **Displays.** One borderless top-most window per display, sized in physical pixels (per-monitor
+  DPI v2 in `app.manifest`). WebView2 picks each monitor's scale itself. When displays change
+  (a DisplayPort monitor sleeping or waking, docking, a resolution change), the windows are
+  reconciled by device name: new ones are added, moved ones are resized, gone ones are closed.
+  A crashed WebView2 renderer is reloaded.
+- **`/p <hwnd>`** (the Settings dialog thumbnail). The window takes the parent's DPI awareness,
+  becomes a `WS_CHILD` of that HWND before it is ever shown, and follows the parent's size. It
+  runs at 30 fps like the macOS `isPreview` path. When the dialog destroys the thumbnail (or a
+  250 ms check finds the parent gone), it closes the WebView2 controller and the process exits.
+- **`/c`** (and no arguments) opens the Options dialog, owned by the given HWND or the foreground
+  window. Its options are finish (Auto / dark / light), time format (System / 12 / 24), show
+  seconds and Pure black. If the WebView2 runtime is missing, the dialog says so and links to
+  Microsoft's installer. The runtime is not bootstrapped: a screen saver shouldn't install
+  software on its own. In `/s` without the runtime, each screen shows a short note, and the
+  saver still exits on input. Any other start-up failure is logged; from `/c` it shows a
+  message box.
 - **`/w`** (development only) runs the saver in a normal 1280×800 window with DevTools.
 
 ## Build
@@ -93,7 +189,7 @@ Needs the .NET SDK 8+. The .NET Framework 4.8 reference assemblies come from NuG
 Studio isn't required.
 
 ```bash
-pwsh windows/build.ps1                    # → windows/dist/Quiet Hours - <Style>.scr ×8 + licences + install.ps1
+pwsh windows/build.ps1                    # → windows/dist/: the eight .scr, READ ME FIRST.txt, install.ps1, licences
 ```
 
 ```bash
@@ -125,41 +221,6 @@ python3 -I windows/tools/serve.py   # then open:
 ```
 
 `.claude/launch.json` has this server as `windows-web`.
-
-## Install (users)
-
-> **About the Windows warning.** These savers aren't code-signed yet (see *Code signing* below).
-> So when you open or install one, Windows may say **"Windows protected your PC … unrecognized
-> app"**. Click **More info**, then **Run anyway**. Windows shows this for any program whose
-> publisher it doesn't know yet; it doesn't mean the file is harmful. The source is all in this
-> repository, and CI builds the files from it. On Windows 11 with **Smart App Control** on,
-> unsigned programs are blocked with no override. Wait for a signed release instead of turning
-> Smart App Control off.
->
-> **Privacy.** Quiet Hours collects nothing. There are no analytics or accounts, and it makes no
-> network requests. The page is served from inside the `.scr`, and the saver refuses any other
-> request. WebView2's SmartScreen address checks are turned off. Options stay in your registry
-> (`HKCU\Software\Quiet Hours`). Errors are written to a local log file that is never sent
-> anywhere. The WebView2 runtime itself is a Windows component that Windows Update keeps up to
-> date.
-
-1. Download and unzip the release. If the zip came from a browser: right-click it → Properties →
-   **Unblock** first, or every `.scr` inherits the download mark.
-2. Move the `.scr` files somewhere permanent, e.g. `%LOCALAPPDATA%\Programs\Quiet Hours`.
-3. Right-click the style you want → **Install**. Windows opens Screen Saver Settings with it
-   selected. Use **Settings…** for its options and **Preview** to test.
-
-Windows' list only shows savers in `C:\Windows\System32` plus the selected one. To see all eight
-in the list, copy them there (needs admin) or use the script:
-
-```powershell
-.\install.ps1 -Style Chorus     # per user, no admin: copies all eight, selects Chorus
-.\install.ps1 -AllUsers         # admin: copies all eight to System32 so all are listed
-.\install.ps1 -Uninstall
-```
-
-Settings are stored per style under `HKCU\Software\Quiet Hours\<Style>`. Logs go to
-`%LOCALAPPDATA%\Quiet Hours\quiethours.log`.
 
 ## Code signing and SmartScreen (open item)
 
@@ -201,11 +262,15 @@ GitHub Action with the account endpoint, account name and certificate profile as
   black off).
 - Pure black makes dark rooms `#000`. The burn-in translate is applied (3 px at 1024×768). The
   canvas and DOM rooms are oversized by 16 px.
-- The host builds for all eight styles with **0 warnings, 0 errors** (warnings are errors). Each
-  `.exe` is 1.45 MB and carries the page, the fonts, `Microsoft.Web.WebView2.Core.dll` and the
-  x64/x86/arm64 loaders as resources, plus its own `QHStyle`.
-- 19 unit tests pass: argument parsing (`/s`, `/S`, `-s`, `/p 123`, `/p:123`, `/c:123`, `/c`,
-  none, `/w`) and 12/24h pattern detection.
+- The host builds for all eight styles with **0 warnings, 0 errors** (warnings are errors).
+  Each `.exe` is 1.45 MB, with its own version resource ("Quiet Hours - Hinge"). It carries as
+  resources the page, the fonts, `Microsoft.Web.WebView2.Core.dll` and the x64/x86/arm64 loaders,
+  plus its own `QHStyle`.
+- `Microsoft.Web.WebView2.Core.dll` is IL-only and AnyCPU (its CLI header was checked), so
+  loading it from memory is allowed.
+- 26 unit tests pass. Argument parsing covers `/s`, `/S`, `-s`, `" /S "`, `/p 123`, `/P 123`,
+  `/p:123`, `/p123`, `/c:123`, `/c`, `/c:0`, a negative handle, none, and `/w`. The rest test
+  12/24h pattern detection.
 
 **Not verified (needs a Windows machine or the CI run):**
 
@@ -214,13 +279,18 @@ GitHub Action with the account endpoint, account name and certificate profile as
   - the extracted loader and `SetLoaderDllFolderPath`;
   - serving the page via `WebResourceRequested`;
   - per-monitor DPI on mixed displays;
-  - the `/p` child window inside the Settings dialog;
-  - exiting on input, including the grace period;
-  - live theme and time-format switching.
+  - display hot-plug;
+  - the `/p` child window inside the Settings dialog, and its clean exit;
+  - exiting on input and ignoring jitter;
+  - live theme and time-format switching;
+  - the missing-runtime messages;
+  - `install.ps1`.
 - The CI workflow itself, which has never run. On Windows, the WebView2 package's MSBuild
   targets may emit a warning that macOS doesn't, and warnings-as-errors would fail the build.
 - That Windows shows "Quiet Hours - Hinge" (the file name) in its list, and that long names
   with spaces work in the `SCRNSAVE.EXE` registry value on every setup.
+- Whether the Chromium switches fully silence WebView2's background traffic. The page's own
+  requests are blocked regardless.
 - CPU, GPU and memory cost, and behaviour over an 8-hour run (the PRD's goal 5).
 - SmartScreen / Smart App Control behaviour for a screen saver started by the system rather than
   Explorer.

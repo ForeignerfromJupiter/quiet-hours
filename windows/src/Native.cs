@@ -48,6 +48,55 @@ namespace QuietHours.Windows
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         public static extern int GetLocaleInfoEx(string localeName, int lcType, StringBuilder data, int cchData);
 
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        // Windows 10 1607+. Callers catch EntryPointNotFoundException on older systems.
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetWindowDpiAwarenessContext(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+
+        /// Make windows created on this thread match `parent`'s DPI awareness, so a child of
+        /// another process's dialog (the Settings preview) isn't refused or mis-scaled.
+        public static void MatchDpiAwareness(IntPtr parent)
+        {
+            try
+            {
+                IntPtr ctx = GetWindowDpiAwarenessContext(parent);
+                if (ctx != IntPtr.Zero) SetThreadDpiAwarenessContext(ctx);
+            }
+            catch (EntryPointNotFoundException)
+            {
+                // Older than Windows 10 1607: nothing to match.
+            }
+        }
+
+        /// Any key or mouse button down now, or pressed since the previous call (the low bit).
+        /// Keys in `held` (down when the saver settled, e.g. a stuck key) only count once released
+        /// and pressed again. Pass `record: true` to refill `held` instead.
+        public static bool AnyKeyOrButtonPressed(bool[] held, bool record = false)
+        {
+            bool any = false;
+            for (int vk = 1; vk < 256; vk++)   // no early exit: every call clears every low bit
+            {
+                short state = GetAsyncKeyState(vk);
+                bool down = (state & 0x8000) != 0;
+                if (record) { held[vk] = down; continue; }
+                if (held[vk])
+                {
+                    if (!down) held[vk] = false;   // released: from now on it counts
+                    continue;
+                }
+                if ((state & 0x8001) != 0) any = true;
+            }
+            return any;
+        }
+
         public static uint LastInputTick()
         {
             var info = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO)) };
