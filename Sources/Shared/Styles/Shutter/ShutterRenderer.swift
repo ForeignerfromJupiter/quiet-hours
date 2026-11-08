@@ -41,7 +41,16 @@ enum ShutterGeometry {
             let b = V[(i + 1) % n]
             return CGPoint(x: b.x + D[i].dx * reach, y: b.y + D[i].dy * reach)
         }
-        let blades = (0..<n).map { i in [V[i], V[(i + 1) % n], far[i], far[(i + n - 1) % n]] }
+        // Spelled out with explicit types: older Swift compilers (Xcode 16, CI) time out on the
+        // one-line closure.
+        var blades: [[CGPoint]] = []
+        blades.reserveCapacity(n)
+        for i in 0..<n {
+            let next: Int = (i + 1) % n
+            let prev: Int = (i + n - 1) % n
+            let quad: [CGPoint] = [V[i], V[next], far[i], far[prev]]
+            blades.append(quad)
+        }
         return Iris(aperture: V, blades: blades, outline: far)
     }
 
