@@ -10,7 +10,7 @@ Quiet Hours is a free, open source macOS screensaver with thirteen clock styles:
 
 1. Thirteen clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
 2. Every style follows macOS light or dark mode by default, with a manual override.
-3. One download from GitHub Releases holding one `.saver` file per style, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
+3. One download from GitHub Releases holding one `.saver` file per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
 4. Runs on Apple Silicon and Intel Macs, macOS 12 Monterey and later.
 5. Quiet on resources: under 10% of one CPU core on an M-series Mac at 60 fps, no memory growth over an 8-hour run.
 6. Clean open source repo: MIT license, README with GIFs, one-command build.

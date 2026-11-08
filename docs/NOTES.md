@@ -16,9 +16,7 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
   Mono (OFL) would match exactly. Decide when Chorus and Breath need the same label.
 - **Gradient banding.** The dark radial room gradient can band on 8-bit panels. Option: draw it
   once into a bitmap with ±0.5/255 noise and use that as layer contents.
-- **Dim** (0–60%) and **Displays** (main only / all) from the Options table are not wired yet.
-  Both are view-level and cheap: an overlay layer, and skipping `begin()` when
-  `window.screen != NSScreen.screens.first`.
+- **Dim** (0–60%) and **Displays** (main only / all) are wired (Options panel, Nov 9 2026).
 - **Reduce motion.** Hinge flips are instant when Accessibility → Reduce motion is on, as in the
   prototype. Apply the same rule to every style.
 - **Seconds cards** flip every second at 700 ms each. That's fine for CPU, but a "calm seconds"
@@ -73,8 +71,9 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 - Measured full screen, Release: all three hold 100 fps on the BenQ (100 Hz, 5K) and 120 fps on
   the built-in. Slice missed 2 of 500 frames on 5K during a change; Poster rebuilds its XOR path
   every frame (drift) at ~5% CPU; Module idles between morphs (~0.5% CPU).
-- Slice keeps one ink and one accent image per visible digit (~110 MB RSS on 5K). If memory
-  matters, render 8-bit alpha masks and tint with a mask layer.
+- Slice images are cropped to their ink and pruned after each change: footprint 107 → 71 MB on 5K
+  (Hinge/Module ~35 MB). The rest is the accent copies for the seconds ribbon; 8-bit alpha masks
+  tinted through a mask layer would roughly halve it again.
 - Poster unions each number's outline with `CGPath.normalized` (macOS 13+). On macOS 12 the raw
   outline is used; if Anybody's overlapping contours show as holes there, union per glyph with
   a different method.
@@ -93,3 +92,14 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 
 - Hardened runtime is already on for both targets. Add the Developer ID identity and
   notarization in CI; the `.p12` and API key go in repository secrets only.
+
+## Nov 9 2026: five new styles, ultrawide, Options panel
+
+- Ticker, Echo, Shutter, Specimen and Board were built in parallel (one agent each, isolated
+  worktrees) and integrated on main; each holds full refresh rate and has unit tests.
+- Ultrawide (32:9 / 21:9) checked for every style; Poster, Prose and Board now use `Room.stage`.
+- Light/dark: Hinge's light finish has a light room; the view re-reads the system appearance
+  every 2 s in case the sandboxed host misses the theme notification. Still to confirm on a real
+  machine: switch macOS appearance while the installed saver runs.
+- Windows prototype pushed as branch `windows-preview` (CI builds the .scr files; never run on
+  Windows yet; eight of the thirteen styles).
