@@ -1,9 +1,14 @@
 # Quiet Hours
 
 Open source macOS screensaver with five clock styles (Hinge, Chorus, Breath, Lumen, Prose).
-**The product is a single `QuietHours.saver` bundle.** Users download it, double-click it, and
-pick it in System Settings → Screen Saver. It follows the system's light/dark mode and 12/24h
-setting. `QuietHoursPreview.app` is a developer harness only and never ships.
+**The product is five `.saver` bundles, one per style:** `Quiet Hours – Hinge.saver`, `– Chorus`,
+`– Breath`, `– Lumen`, `– Prose`. Each is its own tile in System Settings → Screen Saver; users
+pick a style there, not in Options. All five build from the same sources (an XcodeGen target
+template). Each bundle is its own Swift module (`QuietHoursHinge`, …) so their classes never clash
+when the host loads several into one process; never give a class a fixed `@objc(Name)`. The
+bundle's style comes from `QHStyle` in its Info.plist (`QuietHoursView.fixedStyle`). They follow
+the system's light/dark mode and 12/24h setting. `QuietHoursPreview.app` is a developer harness
+only (it has a style picker) and never ships.
 
 Specs: `docs/PRD.md` (product) and `reference/prototype.html` (visual and motion source of
 truth: timings, easing curves, sizes and colors must match or beat it). Ideas for later phases:
@@ -26,7 +31,9 @@ xcodegen generate                       # project.yml → QuietHours.xcodeproj (
 xcodebuild -project QuietHours.xcodeproj -scheme QuietHours -configuration Debug -derivedDataPath build/DerivedData build
 xcodebuild -project QuietHours.xcodeproj -scheme QuietHoursPreview -destination 'platform=macOS,arch=arm64' -derivedDataPath build/DerivedData test
 open build/DerivedData/Build/Products/Debug/QuietHoursPreview.app
-scripts/install-local.sh [--open | --uninstall]   # Release universal .saver → ~/Library/Screen Savers
+xcodebuild -project QuietHours.xcodeproj -scheme Savers -configuration Release -destination 'generic/platform=macOS' -derivedDataPath build/DerivedData build
+scripts/install-local.sh [--open | --uninstall]   # all five, Release universal → ~/Library/Screen Savers
+# System Settings caches the list: quit and reopen it to see newly installed savers.
 ```
 
 Every step must build with zero errors and zero warnings (ignore the `appintentsmetadataprocessor`
@@ -40,13 +47,14 @@ animation), `-QHFullScreen YES`, `-QHScreen 1` (open on that display). Serve `re
 `.claude/launch.json` (http://localhost:8765) to view the prototype and ideas page live.
 Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
-The installed saver's settings live in the `legacyScreenSaver` container under the
-`com.ashik.quiethours.saver` module, so the two never share settings.
+Each installed saver keeps its own settings in the `legacyScreenSaver` container under its
+bundle ID (`com.ashik.quiethours.hinge`, …), so savers and the Preview never share settings.
 
 ## Layout
 
 ```
-project.yml                 XcodeGen spec: QuietHours (.saver), QuietHoursPreview (app), QuietHoursTests
+project.yml                 XcodeGen spec: Saver template → QuietHoursHinge/Chorus/Breath/Lumen/Prose,
+                            QuietHoursPreview (app), QuietHoursTests; scheme `Savers` builds all five
 Sources/Shared/             compiled into both the saver and the preview app
   QuietHoursView.swift      ScreenSaverView subclass, principal class (@objc(QuietHoursView))
   Core/ClockStyle.swift     ClockStyle protocol, StyleContext, style factory
@@ -113,7 +121,7 @@ Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable imp
 ## Conventions
 
 - Swift 5 mode, macOS 12 deployment target, universal binary, no third-party dependencies.
-- Bundle IDs: `com.ashik.quiethours.saver`, `.preview`, `.tests`. Team `HVFYWZDVQH`, automatic
+- Bundle IDs: `com.ashik.quiethours.hinge` / `.chorus` / `.breath` / `.lumen` / `.prose`, `.preview`, `.tests`. Team `HVFYWZDVQH`, automatic
   signing for local builds.
 - Colors are sRGB hex taken from the prototype CSS. Put a CSS reference in a comment next to
   any ported value.

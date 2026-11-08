@@ -25,9 +25,10 @@ settings:
     Release:
       ONLY_ACTIVE_ARCH: NO
 
-targets:
-  # The screensaver bundle. Principal class: QuietHoursView.
-  QuietHours:
+targetTemplates:
+  # One .saver per style, all from the same sources. Each gets its own Swift module so its classes
+  # never clash with a sibling's when the host loads several savers into one process.
+  Saver:
     type: bundle
     platform: macOS
     sources:
@@ -36,13 +37,32 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_NAME: QuietHours
-        PRODUCT_BUNDLE_IDENTIFIER: com.ashik.quiethours.saver
+        PRODUCT_NAME: "Quiet Hours – ${styleName}"
+        PRODUCT_MODULE_NAME: "QuietHours${styleName}"
+        PRODUCT_BUNDLE_IDENTIFIER: "com.ashik.quiethours.${styleId}"
+        QH_STYLE: "${styleId}"
         WRAPPER_EXTENSION: saver
         INFOPLIST_FILE: Sources/Saver/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         INSTALL_PATH: "$(HOME)/Library/Screen Savers"
         SKIP_INSTALL: YES
+
+targets:
+  QuietHoursHinge:
+    templates: [Saver]
+    templateAttributes: { styleId: hinge, styleName: Hinge }
+  QuietHoursChorus:
+    templates: [Saver]
+    templateAttributes: { styleId: chorus, styleName: Chorus }
+  QuietHoursBreath:
+    templates: [Saver]
+    templateAttributes: { styleId: breath, styleName: Breath }
+  QuietHoursLumen:
+    templates: [Saver]
+    templateAttributes: { styleId: lumen, styleName: Lumen }
+  QuietHoursProse:
+    templates: [Saver]
+    templateAttributes: { styleId: prose, styleName: Prose }
 
   # Plain app that hosts the same view in a resizable window. Day-to-day iteration happens here.
   QuietHoursPreview:
@@ -77,10 +97,15 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
 
 schemes:
-  QuietHours:
+  # Builds all five savers.
+  Savers:
     build:
       targets:
-        QuietHours: all
+        QuietHoursHinge: all
+        QuietHoursChorus: all
+        QuietHoursBreath: all
+        QuietHoursLumen: all
+        QuietHoursProse: all
   QuietHoursPreview:
     build:
       targets:

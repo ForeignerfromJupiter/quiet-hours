@@ -1,8 +1,9 @@
 import ScreenSaver
 
-/// The `.saver` principal class. Picks the style, drives frames, handles start/stop and appearance.
-/// The Preview app hosts this same class.
-@objc(QuietHoursView)
+/// The principal class of every `.saver` (NSPrincipalClass = `<Module>.QuietHoursView`).
+/// Each saver is its own Swift module, so the five can share one host process without their
+/// Objective-C class names clashing. Picks the style, drives frames, handles start/stop and
+/// appearance. The Preview app hosts this same class.
 final class QuietHoursView: ScreenSaverView {
 
     // MARK: Preview-app hooks (defaults are what the real saver uses)
@@ -47,8 +48,13 @@ final class QuietHoursView: ScreenSaverView {
     private let calendar = Calendar.autoupdatingCurrent
 
     static var moduleName: String {
-        Bundle(for: QuietHoursView.self).bundleIdentifier ?? "com.ashik.quiethours.saver"
+        Bundle(for: QuietHoursView.self).bundleIdentifier ?? "com.ashik.quiethours"
     }
+
+    /// The style this bundle is locked to (`QHStyle` in each saver's Info.plist); nil in the
+    /// Preview app, which lets you pick.
+    static let fixedStyle: StyleID? =
+        (Bundle(for: QuietHoursView.self).object(forInfoDictionaryKey: "QHStyle") as? String).flatMap(StyleID.init(rawValue:))
 
     // MARK: Init
 
@@ -80,7 +86,7 @@ final class QuietHoursView: ScreenSaverView {
     private var optionsSheet: OptionsSheet?
     override var hasConfigureSheet: Bool { true }
     override var configureSheet: NSWindow? {
-        if optionsSheet == nil { optionsSheet = OptionsSheet(view: self, defaults: defaults) }
+        if optionsSheet == nil { optionsSheet = OptionsSheet(view: self, defaults: defaults, fixedStyle: Self.fixedStyle) }
         optionsSheet?.load()
         return optionsSheet?.window
     }
@@ -103,6 +109,7 @@ final class QuietHoursView: ScreenSaverView {
 
         // Host workaround 3: settings may have changed while an old instance lingered.
         settings = Settings.load(from: defaults)
+        if let fixed = Self.fixedStyle { settings.style = fixed }
         uses24Hour = TimeFormat.systemUses24Hour(settings.hourCycle)
         systemIsDark = AppearanceResolver.systemIsDark()
         finishAppearance = AppearanceResolver.resolve(settings.finish(for: settings.style), systemIsDark: systemIsDark)

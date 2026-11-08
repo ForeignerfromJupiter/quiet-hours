@@ -6,6 +6,7 @@ final class OptionsSheet: NSObject {
     let window: NSWindow
     private weak var view: QuietHoursView?
     private let defaults: UserDefaults
+    private let fixedStyle: StyleID?
 
     private let stylePopup = NSPopUpButton()
     private let finishPopup = NSPopUpButton()
@@ -14,9 +15,11 @@ final class OptionsSheet: NSObject {
 
     private static let hourTitles: [(HourCycle, String)] = [(.system, "System setting"), (.h12, "12-hour"), (.h24, "24-hour")]
 
-    init(view: QuietHoursView, defaults: UserDefaults) {
+    /// `fixedStyle`: each saver bundle is one style, so its sheet has no style picker.
+    init(view: QuietHoursView, defaults: UserDefaults, fixedStyle: StyleID? = nil) {
         self.view = view
         self.defaults = defaults
+        self.fixedStyle = fixedStyle
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 200),
                           styleMask: [.titled], backing: .buffered, defer: true)
         super.init()
@@ -42,6 +45,7 @@ final class OptionsSheet: NSObject {
         grid.rowSpacing = 10
         grid.columnSpacing = 10
         grid.column(at: 0).xPlacement = .trailing
+        if fixedStyle != nil { grid.row(at: 0).isHidden = true }
 
         let done = NSButton(title: "Done", target: self, action: #selector(done))
         done.keyEquivalent = "\r"
@@ -74,7 +78,8 @@ final class OptionsSheet: NSObject {
     private func label(_ s: String) -> NSTextField { NSTextField(labelWithString: s) }
 
     private var selectedStyle: StyleID {
-        (stylePopup.selectedItem?.representedObject as? String).flatMap(StyleID.init(rawValue:)) ?? .hinge
+        if let fixedStyle { return fixedStyle }
+        return (stylePopup.selectedItem?.representedObject as? String).flatMap(StyleID.init(rawValue:)) ?? .hinge
     }
 
     private var current = Settings()
@@ -82,7 +87,7 @@ final class OptionsSheet: NSObject {
     /// Reads the stored settings into the controls (every time the sheet opens).
     func load() {
         current = Settings.load(from: defaults)
-        if let i = StyleID.allCases.firstIndex(of: current.style) { stylePopup.selectItem(at: i) }
+        if let i = StyleID.allCases.firstIndex(of: fixedStyle ?? current.style) { stylePopup.selectItem(at: i) }
         fillFinishes()
         hourPopup.selectItem(at: Self.hourTitles.firstIndex { $0.0 == current.hourCycle } ?? 0)
         secondsCheck.state = current.showSeconds ? .on : .off

@@ -24,9 +24,10 @@ enum Fonts {
             guard let url = url(name) else { NSLog("QuietHours: missing font \(name)"); continue }
             var error: Unmanaged<CFError>?
             if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
-                // kCTFontManagerErrorAlreadyRegistered (105) is fine: another instance got there first.
+                // Already registered (105) or the same font from a sibling saver's bundle (305) is
+                // fine: we always build fonts from our own file's descriptor, never by name.
                 let code = error.map { CFErrorGetCode($0.takeRetainedValue()) } ?? 0
-                if code != 105 { NSLog("QuietHours: font registration failed for \(name) (\(code))") }
+                if code != 105 && code != 305 { NSLog("QuietHours: font registration failed for \(name) (\(code))") }
             }
         }
     }

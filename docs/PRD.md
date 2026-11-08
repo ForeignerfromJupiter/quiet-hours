@@ -2,7 +2,7 @@
 
 Nov 8, 2026 · @Ashik
 
-Quiet Hours is a free, open source macOS screensaver with five clock styles: Hinge, Chorus, Breath, Lumen and Prose. It ships as one signed and notarized .saver on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
+Quiet Hours is a free, open source macOS screensaver with five clock styles: Hinge, Chorus, Breath, Lumen and Prose. It ships as five signed and notarized savers, one per style ("Quiet Hours – Hinge" and so on), in one download on GitHub, works on Macs from macOS 12 onward, and follows the system's light or dark mode.
 
 ## Goals and non-goals
 
@@ -10,7 +10,7 @@ Quiet Hours is a free, open source macOS screensaver with five clock styles: Hin
 
 1. Five clock styles that look and move like the browser prototype (`reference/prototype.html`), or better, rendered natively at full refresh rate.
 2. Every style follows macOS light or dark mode by default, with a manual override.
-3. One `.saver` file anyone can download from GitHub Releases and install with a double-click, with no Gatekeeper warning.
+3. One download from GitHub Releases holding five `.saver` files, one per style, each installed with a double-click and shown as its own tile in System Settings → Screen Saver, with no Gatekeeper warning. *(Changed Nov 8, 2026, from a single all-in-one saver: styles are picked from the Screen Saver grid, not an Options menu.)*
 4. Runs on Apple Silicon and Intel Macs, macOS 12 Monterey and later.
 5. Quiet on resources: under 10% of one CPU core on an M-series Mac at 60 fps, no memory growth over an 8-hour run.
 6. Clean open source repo: MIT license, README with GIFs, one-command build.
@@ -111,7 +111,7 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 
 | Setting | Choices | Default |
 | --- | --- | --- |
-| Style | Hinge, Chorus, Breath, Lumen, Prose | Hinge |
+| Style | One saver per style; chosen in the Screen Saver grid, not in Options | — |
 | Finish | Auto, or the style's dark or light finish | Auto |
 | Time format | System, 12-hour, 24-hour | System (from the user's locale settings) |
 | Seconds | On, off | Off |
@@ -122,13 +122,13 @@ The panel shows a small live preview of the chosen style and finish. Settings ar
 
 ## Technical approach
 
-One `ScreenSaverView` subclass hosts whichever style is selected. Each style is a self-contained renderer behind one small protocol, so styles can be built and tuned one at a time.
+One `ScreenSaverView` subclass hosts the style. The five savers are built from the same sources; each bundle is its own Swift module (so their classes never clash when the host loads several into one process) and names its style in its Info.plist. Each style is a self-contained renderer behind one small protocol, so styles can be built and tuned one at a time.
 
 **Stack:** Swift, ScreenSaver framework, Core Animation, Core Text, Metal. Deployment target macOS 12, universal binary (arm64 + x86\_64). Project generated with XcodeGen so it's reproducible from the repo. No third-party dependencies.
 
 | Part | Job | Approach |
 | --- | --- | --- |
-| QuietHoursView | The `.saver` principal class; picks the style, drives frames, handles start/stop | `ScreenSaverView`, frames from a display link (`NSView.displayLink` on macOS 14+, `CVDisplayLink` below) |
+| QuietHoursView | Principal class of every `.saver` (`<Module>.QuietHoursView`); runs its bundle's style, drives frames, handles start/stop | `ScreenSaverView`, frames from a display link (`NSView.displayLink` on macOS 14+, `CVDisplayLink` below) |
 | ClockStyle protocol | `start`, `render(time, frameTime)`, `stop`, `appearanceDidChange` | One renderer per style |
 | HingeRenderer | Flip cards | Core Animation layers with `CATransform3D` rotations; spring timing for the bounce |
 | ChorusRenderer | 24 clock faces and 48 hands | Metal (or Core Graphics if it holds 60 fps); faces pre-rendered to a texture once |
@@ -153,9 +153,9 @@ Verify each workaround on the current macOS before relying on it; the host's beh
 
 Releases go out on GitHub, signed with Ashik's Developer ID and notarized by Apple, so a downloaded copy opens with no warning on any supported Mac.
 
-1. **Sign** the `.saver` with a *Developer ID Application* certificate, hardened runtime on, secure timestamp.
-2. **Package** it in a `.dmg` with a short "double-click to install" note, and sign the DMG.
-3. **Notarize** the DMG with `notarytool` using an App Store Connect API key, then **staple** the ticket to the DMG (and to the `.saver` too, if `stapler` accepts it) so it validates offline.
+1. **Sign** each of the five `.saver` bundles with a *Developer ID Application* certificate, hardened runtime on, secure timestamp.
+2. **Package** them in one `.dmg` with a short "double-click the ones you want" note, and sign the DMG.
+3. **Notarize** the DMG with `notarytool` using an App Store Connect API key, then **staple** the ticket to the DMG (and to each `.saver` too, if `stapler` accepts it) so it validates offline.
 4. **Publish** the DMG and a checksum to a GitHub Release.
 5. **Automate** steps 1 to 4 in a GitHub Actions workflow that runs on a version tag. The certificate (.p12), its password and the API key live in repository secrets, never in the repo.
 
