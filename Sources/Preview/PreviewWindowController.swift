@@ -158,7 +158,8 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
 
     private func updateStatus() {
         let system = saverView.systemIsDark ? "dark" : "light"
-        let finish = saverView.finishAppearance == .dark ? "Graphite" : "Ivory"
+        let names = saverView.settings.style.finishNames
+        let finish = saverView.finishAppearance == .dark ? names.dark : names.light
         let driver = saverView.usingCVDisplayLink ? "CVDisplayLink" : "NSView.displayLink"
         var text = "System \(system) → \(finish) · \(driver)"
         if saverView.timeOffset != 0 { text += " · previewing another time" }

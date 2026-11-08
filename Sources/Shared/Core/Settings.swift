@@ -12,8 +12,18 @@ enum StyleID: String, CaseIterable {
         }
     }
 
-    /// Styles built so far. Unbuilt styles fall back to Hinge.
-    var isAvailable: Bool { self == .hinge }
+    /// Styles built so far.
+    var isAvailable: Bool { true }
+
+    /// Names of the style's dark and light finishes.
+    var finishNames: (dark: String, light: String) {
+        switch self {
+        case .hinge: return ("Graphite", "Ivory")
+        case .chorus: return ("Night", "Paper")
+        case .breath: return ("Graphite", "Paper")
+        case .lumen: return ("Night", "Paper")
+        }
+    }
 }
 
 /// Per-style finish. `.dark`/`.light` pin the style's dark or light finish.

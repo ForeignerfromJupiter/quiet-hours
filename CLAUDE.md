@@ -9,8 +9,14 @@ Specs: `docs/PRD.md` (product) and `reference/prototype.html` (visual and motion
 truth: timings, easing curves, sizes and colors must match or beat it). Ideas for later phases:
 `docs/NOTES.md`.
 
-Status: Phase 1 (skeleton + Hinge) done. Breath, Chorus, Lumen, the Options panel and the
-release pipeline are not started.
+Status: all four styles run natively (first pass of Phases 2–4, ported from the prototype).
+A simple Options sheet (style, finish, time format, seconds) works in System Settings. Still to
+do: Lumen's "push further" round, the full Options panel (live preview, displays, dim),
+thumbnails and the release pipeline (Phase 5).
+
+Deliberate departures from the prototype (owner's calls): dark finishes use deeper blacks (rooms
+go to #000); Hinge sizes the visible row to fill ~94% of the width (height-capped at 70%), so a
+three-card 12h time is larger than a four-card one; Chorus's 8 closes its lower loop.
 
 ## Build, test, install
 
@@ -25,8 +31,10 @@ scripts/install-local.sh [--open | --uninstall]   # Release universal .saver →
 Every step must build with zero errors and zero warnings (ignore the `appintentsmetadataprocessor`
 line, which is Xcode tooling noise).
 
-Preview debug launch arguments: `-QHTimeScale 10` (slow motion), `-QHFlipIn 2` (next minute
-change lands 2 s after launch), `-QHFreeze 0.3` (hold every flip at 300 ms into its timeline).
+Preview debug launch arguments: `-QHTimeScale 10` (slow motion, all styles), `-QHFlipIn 2`
+(next minute change lands 2 s after launch; `-QHFlipIn 30` lands on :30 for Chorus patterns),
+`-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline).
+Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
 The installed saver's settings live in the `legacyScreenSaver` container under the
 `com.ashik.quiethours.saver` module, so the two never share settings.
@@ -45,7 +53,12 @@ Sources/Shared/             compiled into both the saver and the preview app
   Core/HostLifecycle.swift  com.apple.screensaver.willstop observer
   Core/Fonts.swift          bundled Anybody variable font
   Core/CubicBezier.swift    CSS cubic-bezier solver
-  Styles/Hinge/             HingeRenderer, HingeCard, HingeFlipTimeline, HingePalette
+  OptionsSheet.swift        configureSheet: style, finish, time format, seconds
+  Styles/Hinge/             HingeRenderer, HingeCard, HingeFlipTimeline, HingeLayout, HingePalette
+  Styles/Breath/            BreathRenderer: per-frame CTFont variations → CAShapeLayer glyphs
+  Styles/Chorus/            ChorusRenderer: baked face bitmap + rotated hand layers
+  Styles/Lumen/             LumenRenderer: CPU particles, Metal points + feedback-texture trails
+                            (shaders compiled at runtime from a string: no Metal toolchain needed)
 Sources/Saver/Info.plist    NSPrincipalClass = QuietHoursView
 Sources/Preview/            preview harness (window, controls)
 Resources/Fonts/            Anybody-Variable.ttf + OFL.txt (bundled into both targets)

@@ -68,8 +68,14 @@ final class QuietHoursView: ScreenSaverView {
     override var wantsUpdateLayer: Bool { true }
     override func updateLayer() {}   // all drawing is in sublayers
 
-    override var hasConfigureSheet: Bool { false }   // Options panel arrives in Phase 5
-    override var configureSheet: NSWindow? { nil }
+    // Simple Options sheet for now; the full panel with live preview is Phase 5.
+    private var optionsSheet: OptionsSheet?
+    override var hasConfigureSheet: Bool { true }
+    override var configureSheet: NSWindow? {
+        if optionsSheet == nil { optionsSheet = OptionsSheet(view: self, defaults: defaults) }
+        optionsSheet?.load()
+        return optionsSheet?.window
+    }
 
     // MARK: Start / stop
 

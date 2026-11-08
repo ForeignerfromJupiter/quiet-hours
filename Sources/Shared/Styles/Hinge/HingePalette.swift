@@ -14,18 +14,21 @@ struct HingePalette {
     let fold: CGColor         // --fold: the shade a falling leaf casts
     let foldClear: CGColor    // --fold at alpha 0, so gradients fade without going grey
 
-    /// Dark finish: charcoal cards, warm white numerals, near-black room.
+    /// Dark finish: charcoal cards, warm white numerals, black room.
+    /// Deeper than the prototype (owner's call): room goes to true black at the edges and the
+    /// cards sit one step darker, so the saver disappears into a dark room and suits OLED/mini-LED.
+    /// Prototype values: room #1a1b1f→#070708, top #25262b→#1d1e22, bottom #1a1b1e→#141517, seam #050506.
     static let graphite = HingePalette(
-        roomCenter: srgb(0x1a1b1f), roomEdge: srgb(0x070708),
-        topA: srgb(0x25262b), topB: srgb(0x1d1e22),
-        bottomA: srgb(0x1a1b1e), bottomB: srgb(0x141517),
-        ink: srgb(0xefebe2), seam: srgb(0x050506), pin: srgb(0x34353b), label: srgb(0x7f7c75),
+        roomCenter: srgb(0x0c0c0e), roomEdge: srgb(0x000000),
+        topA: srgb(0x1e1f23), topB: srgb(0x17181b),
+        bottomA: srgb(0x141517), bottomB: srgb(0x0e0f11),
+        ink: srgb(0xefebe2), seam: srgb(0x000000), pin: srgb(0x2c2d32), label: srgb(0x6f6c66),
         highlight: srgb(0xffffff, 0.07),
         fold: srgb(0x000000, 0.62), foldClear: srgb(0x000000, 0))
 
-    /// Light finish: cream cards, near-black numerals, dark warm room.
+    /// Light finish: cream cards, near-black numerals, dark warm room (prototype room #2a2723→#0d0c0b, deepened).
     static let ivory = HingePalette(
-        roomCenter: srgb(0x2a2723), roomEdge: srgb(0x0d0c0b),
+        roomCenter: srgb(0x1c1a17), roomEdge: srgb(0x000000),
         topA: srgb(0xf4f0e6), topB: srgb(0xebe6da),
         bottomA: srgb(0xe3ddd0), bottomB: srgb(0xd8d1c2),
         ink: srgb(0x1c1b19), seam: srgb(0x6f695f), pin: srgb(0xb9b2a3), label: srgb(0x9b958a),

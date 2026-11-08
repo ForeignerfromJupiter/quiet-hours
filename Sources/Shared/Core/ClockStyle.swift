@@ -38,9 +38,10 @@ protocol ClockStyle: AnyObject {
 enum ClockStyles {
     static func make(_ id: StyleID, context: StyleContext) -> ClockStyle {
         switch id {
-        case .hinge, .chorus, .breath, .lumen:
-            // Only Hinge exists in Phase 1; the others fall back to it.
-            return HingeRenderer(context: context)
+        case .hinge: return HingeRenderer(context: context)
+        case .chorus: return ChorusRenderer(context: context)
+        case .breath: return BreathRenderer(context: context)
+        case .lumen: return LumenRenderer(context: context)
         }
     }
 }

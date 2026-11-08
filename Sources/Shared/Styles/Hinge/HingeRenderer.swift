@@ -19,14 +19,11 @@ final class HingeRenderer: ClockStyle {
     private var meridiem: String?
     private var hasRendered = false
 
-    // Prototype sizes (units).
-    private var cardSize: CGSize {
-        context.showSeconds ? CGSize(width: 17.4, height: 25) : CGSize(width: 21.5, height: 31)
-    }
-    private static let secondCardSize = CGSize(width: 5.9, height: 8.4)
-    private static let pairGap: CGFloat = 1
-    private static let groupGap: CGFloat = 3.2
-    private static let labelRise: CGFloat = 3.2
+    private var cardSize: CGSize { HingeLayout.cardSize(showSeconds: context.showSeconds) }
+    private static let secondCardSize = HingeLayout.secondCardSize
+    private static let pairGap = HingeLayout.pairGap
+    private static let groupGap = HingeLayout.groupGap
+    private static let labelRise = HingeLayout.labelRise
     private static let labelSize: CGFloat = 1.4
 
     init(context: StyleContext) {
@@ -59,11 +56,16 @@ final class HingeRenderer: ClockStyle {
         background.frame = bounds
         background.contentsScale = scale
         label.contentsScale = scale
+        resize()
+    }
 
-        // Width-driven like the prototype (cqw), but capped so the block never exceeds 62% of the
-        // height: on 16:10 and 16:9 the cap never bites; on ultrawides it keeps the row on screen.
-        let block = cardSize.height + Self.labelRise
-        unit = max(1, min(bounds.width / 100, 0.62 * bounds.height / block))
+    /// Sizes the cards for the row that is currently showing, then positions them.
+    /// Runs on layout and whenever the 12h leading card appears or disappears.
+    private func resize() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        unit = HingeLayout.unit(width: bounds.width, height: bounds.height,
+                                leadingVisible: leadingVisible ?? true,
+                                showSeconds: context.showSeconds)
 
         let main = CGSize(width: cardSize.width * unit, height: cardSize.height * unit)
         let small = CGSize(width: Self.secondCardSize.width * unit, height: Self.secondCardSize.height * unit)
@@ -124,7 +126,7 @@ final class HingeRenderer: ClockStyle {
         let leading = digits[0] != nil
         if leading != leadingVisible {
             leadingVisible = leading
-            positionRow()
+            resize()
         }
         if time.meridiem != meridiem || !hasRendered {
             meridiem = time.meridiem

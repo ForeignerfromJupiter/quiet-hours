@@ -26,22 +26,28 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 - **Debug harness.** The `-QHFreeze` and `-QHFlipIn` launch arguments made motion review easy.
   Reuse them for the Chorus sweep and the Breath squeeze.
 
-## Breath (Phase 2)
+## Breath (first pass done)
 
-- The font is already bundled and loads from its file by descriptor (`Fonts.anybody`). Axis tags:
-  'wght' 100–900, 'wdth' 50–150.
-- Build glyph outlines per frame from a `CTFont` with variations, or cache paths at weight steps
-  of ~10 if Core Text is too slow.
+- Builds four `CTFont`s with variations and four glyph paths per frame. Profile on the BenQ at
+  full screen; if it stutters, cache paths at weight steps of ~5 and width steps of ~1.
+- Not yet compared side by side with the prototype at 60 fps (Phase 2 exit).
 
-## Chorus (Phase 3)
+## Chorus (first pass done)
 
-- Pre-render one face bitmap per size and finish; draw hands as round-capped lines. Try Core
-  Animation (48 `CAShapeLayer` hands) before reaching for Metal.
+- Faces are one baked bitmap; hands are 96 rotated layers. Check CPU usage at 120 Hz.
+- The prototype's 8 had an open lower loop; fixed. Re-check every digit 0–9 for readability
+  (Phase 3 exit).
 
-## Lumen (Phase 4)
+## Lumen (first pass done)
 
-- Metal compute for particles, a feedback texture for trails. Try two or three variations in the
-  Preview app before settling on one.
+- A straight port, plus frame-rate-independent trail fade. The PRD's "push further" round is
+  still open: particles at different depths with blur, a slow drifting field of stray
+  particles, and flow-field curves instead of straight flights. Try two or three variations in
+  the Preview app.
+- The simulation is CPU-side (6,000 particles max, 1,500 in the thumbnail). Measured Nov 8 2026,
+  Preview window 1280×800 @2x on Apple Silicon, one core: Hinge ~3%, Chorus ~4%, Breath ~8%
+  (Debug), Lumen ~17% (Release), so Lumen misses the PRD's 10% target. Next: move the particle
+  update to a Metal compute shader.
 
 ## Release (Phase 5)
 

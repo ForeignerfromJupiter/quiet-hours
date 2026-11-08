@@ -42,3 +42,25 @@ final class HingeFlipTimelineTests: XCTestCase {
         XCTAssertFalse(at(700).backVisible)
     }
 }
+
+final class HingeLayoutTests: XCTestCase {
+    func testFourCardRowFillsWidthOn16by10() {
+        let u = HingeLayout.unit(width: 1600, height: 1000, leadingVisible: true, showSeconds: false)
+        let row = HingeLayout.rowWidth(leadingVisible: true, showSeconds: false) * u
+        XCTAssertEqual(row / 1600, HingeLayout.widthFill, accuracy: 0.001)
+    }
+
+    func testThreeCardRowIsBiggerButHeightCapped() {
+        let four = HingeLayout.unit(width: 1600, height: 1000, leadingVisible: true, showSeconds: false)
+        let three = HingeLayout.unit(width: 1600, height: 1000, leadingVisible: false, showSeconds: false)
+        XCTAssertGreaterThan(three, four * 1.2)
+        let block = (HingeLayout.cardSize(showSeconds: false).height + HingeLayout.labelRise) * three
+        XCTAssertLessThanOrEqual(block / 1000, HingeLayout.heightFill + 0.001)
+    }
+
+    func testUltrawideIsHeightLimited() {
+        let u = HingeLayout.unit(width: 5120, height: 1440, leadingVisible: true, showSeconds: false)
+        let block = (HingeLayout.cardSize(showSeconds: false).height + HingeLayout.labelRise) * u
+        XCTAssertEqual(block / 1440, HingeLayout.heightFill, accuracy: 0.001)
+    }
+}
