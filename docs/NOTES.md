@@ -58,6 +58,18 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
   glyph, not a live filter.
 - Idle mode (`wantsContinuousFrames`) could also serve Hinge and Chorus between transitions.
 
+## Refresh rates (Nov 8 2026)
+
+- Frame drivers ask for each screen's maximum rate (`NSScreen.maximumFramesPerSecond`) and
+  re-ask when the window changes screens; the thumbnail stays capped at 30.
+- Steady state, full screen, Release, measured from display-link target timestamps:
+  built-in 120 Hz: all styles 120 fps, 0–1 missed per 5 s; BenQ PD2706QN 100 Hz (5088×2862 px):
+  Hinge/Chorus/Breath 100.0 fps with 0 missed, Lumen 99.8 fps with 1 missed per 5 s.
+- **Lumen is near its budget on big panels:** 8.9 ms per frame at 5K/100 Hz (1.9 ms on the
+  built-in). A 144 Hz 4K/5K panel would drop frames. Fixes, in order: render the trail texture at
+  a capped pixel count (~4 MP), then move the simulation to a compute shader.
+- No 144 Hz panel was available to test; the code path is the same as 100/120.
+
 ## Release (Phase 6)
 
 - Hardened runtime is already on for both targets. Add the Developer ID identity and

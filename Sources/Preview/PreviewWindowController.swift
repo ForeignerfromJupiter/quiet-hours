@@ -112,6 +112,14 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
             saverView.timeOffset = target.timeIntervalSinceNow
         }
         saverView.logFrameStats = args.bool(forKey: "QHFrameStats")
+        // `-QHScreen 1` opens the window on that display (0 = built-in on a laptop).
+        if args.object(forKey: "QHScreen") != nil, let window {
+            let i = args.integer(forKey: "QHScreen")
+            if NSScreen.screens.indices.contains(i) {
+                let vf = NSScreen.screens[i].visibleFrame
+                window.setFrame(NSRect(x: vf.midX - 640, y: vf.midY - 425, width: 1280, height: 850).intersection(vf), display: true)
+            }
+        }
         if args.bool(forKey: "QHFullScreen") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.window?.toggleFullScreen(nil) }
         }
@@ -170,7 +178,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         let system = saverView.systemIsDark ? "dark" : "light"
         let names = saverView.settings.style.finishNames
         let finish = saverView.finishAppearance == .dark ? names.dark : names.light
-        let driver = saverView.usingCVDisplayLink ? "CVDisplayLink" : "NSView.displayLink"
+        let driver = (saverView.usingCVDisplayLink ? "CVDisplayLink" : "NSView.displayLink") + " @ \(saverView.refreshRate) Hz"
         var text = "System \(system) → \(finish) · \(driver)"
         if saverView.timeOffset != 0 { text += " · previewing another time" }
         status.stringValue = text
@@ -179,6 +187,7 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Full screen: hide the controls
 
+    func windowDidChangeScreen(_ notification: Notification) { updateStatus() }
     func windowWillEnterFullScreen(_ notification: Notification) { bar.isHidden = true }
     func windowWillExitFullScreen(_ notification: Notification) { bar.isHidden = false }
 }

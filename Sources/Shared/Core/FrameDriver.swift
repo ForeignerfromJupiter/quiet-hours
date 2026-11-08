@@ -2,7 +2,9 @@ import AppKit
 import CoreVideo
 import QuartzCore
 
-/// Calls `tick(frameTime)` once per display refresh on the main thread.
+/// Calls `tick(frameTime)` once per display refresh on the main thread, at the display's native
+/// rate (60, 100, 120, 144 Hz…) unless capped by `maxFPS`. Every style animates from `frameTime`,
+/// never from frame counts, so motion is identical at any rate.
 /// `frameTime` is in the `CACurrentMediaTime()` time base.
 ///
 /// Neither driver retains the view: the display link retains a small proxy that holds the
@@ -25,6 +27,12 @@ enum FrameDrivers {
         }
         return CVDisplayLinkDriver(view: view, maxFPS: maxFPS, tick: tick)
     }
+
+    /// The highest refresh rate of the screen the view is on (60 if unknown).
+    static func nativeFPS(of view: NSView?) -> Int {
+        let screen = view?.window?.screen ?? NSScreen.main
+        return max(screen?.maximumFramesPerSecond ?? 60, 1)
+    }
 }
 
 // MARK: - macOS 14+
@@ -41,6 +49,7 @@ private final class ViewDisplayLinkDriver: FrameDriver {
     private let proxy: Proxy
     private let maxFPS: Int?
     private var link: CADisplayLink?
+    private var screenObserver: NSObjectProtocol?
 
     init(view: NSView, maxFPS: Int?, tick: @escaping (CFTimeInterval) -> Void) {
         self.view = view
@@ -51,15 +60,28 @@ private final class ViewDisplayLinkDriver: FrameDriver {
     func start() {
         guard link == nil, let view else { return }
         let l = view.displayLink(target: proxy, selector: #selector(Proxy.step(_:)))
-        if let maxFPS {
-            let f = Float(maxFPS)
-            l.preferredFrameRateRange = CAFrameRateRange(minimum: f / 2, maximum: f, preferred: f)
-        }
         l.add(to: .main, forMode: .common)
         link = l
+        applyRate()
+        if let window = view.window {
+            // The link follows the view to another display; ask for that display's top rate too.
+            screenObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didChangeScreenNotification, object: window, queue: .main
+            ) { [weak self] _ in self?.applyRate() }
+        }
+    }
+
+    /// Asks for the screen's maximum refresh rate (ProMotion 120, 144 Hz panels…), or the cap.
+    private func applyRate() {
+        guard let link else { return }
+        let native = Float(FrameDrivers.nativeFPS(of: view))
+        let f = maxFPS.map { min(Float($0), native) } ?? native
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: min(60, f), maximum: f, preferred: f)
     }
 
     func stop() {
+        if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        screenObserver = nil
         link?.invalidate()   // releases the proxy
         link = nil
     }

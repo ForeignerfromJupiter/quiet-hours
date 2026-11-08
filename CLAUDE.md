@@ -36,7 +36,7 @@ Preview debug launch arguments: `-QHTimeScale 10` (slow motion, all styles), `-Q
 (next minute change lands 2 s after launch; `-QHFlipIn 30` lands on :30 for Chorus patterns),
 `-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline), `-QHTime 20:07:57`
 (start the clock at that time), `-QHFrameStats YES` (logs frame pacing after each burst of
-animation), `-QHFullScreen YES`. Serve `reference/` with the `reference` entry in
+animation), `-QHFullScreen YES`, `-QHScreen 1` (open on that display). Serve `reference/` with the `reference` entry in
 `.claude/launch.json` (http://localhost:8765) to view the prototype and ideas page live.
 Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
@@ -86,6 +86,9 @@ Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable imp
   and lets `stop` take effect immediately. Styles do no layer work between transitions.
   Exception: endless ambient loops that need no per-frame logic (Prose's caret blink) run as
   CA animations on the render server.
+- **Refresh rate**: frame drivers request the screen's maximum rate (60/100/120/144…) and follow
+  the window to other displays. Never assume 60 Hz: animate from `frameTime`, scale per-frame
+  constants by `dt` (see Lumen's fade).
 - **Idle mode**: a style returning `wantsContinuousFrames == false` gets its display link paused;
   the view renders once per second, on the second, until the style moves again (Prose uses it;
   Hinge and Chorus could).

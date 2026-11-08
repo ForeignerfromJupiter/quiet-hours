@@ -15,7 +15,10 @@ final class QuietHoursView: ScreenSaverView {
     var timeScale: Double = 1
     /// Debug: log frame pacing for each burst of continuous frames (Preview `-QHFrameStats YES`).
     var logFrameStats = false
-    private var stats = (frames: 0, slow: 0, worst: 0.0, last: 0.0, busy: 0.0)
+    private var stats = (frames: 0, slow: 0, worst: 0.0, last: 0.0, busy: 0.0, first: 0.0)
+
+    /// The display's maximum refresh rate (what the frame driver asks for), for the Preview status.
+    var refreshRate: Int { isPreview ? min(30, FrameDrivers.nativeFPS(of: self)) : FrameDrivers.nativeFPS(of: self) }
     /// Debug: hold every flip at this many seconds into its timeline.
     var freezeFlipAt: Double?
     /// The Preview app turns this off so the real saver stopping doesn't stop the preview.
@@ -179,21 +182,35 @@ final class QuietHoursView: ScreenSaverView {
         let time = ClockTime(date: Date().addingTimeInterval(timeOffset), calendar: calendar, uses24Hour: uses24Hour)
         let work = CACurrentMediaTime()
         withoutActions { style.render(time: time, frameTime: frameTime) }
-        if logFrameStats && !idle { recordFrame(at: work) }
+        if logFrameStats && !idle { recordFrame(at: work, frameTime: frameTime) }
         updateIdle()
     }
 
-    /// Counts frames whose interval exceeded 1.5 × the 60 Hz budget and the CPU time spent rendering.
-    private func recordFrame(at start: CFTimeInterval) {
-        let now = CACurrentMediaTime()
-        stats.busy += now - start
+    /// Counts frames that missed a refresh (interval over 1.5 × this display's budget, so 12.5 ms
+    /// at 120 Hz, 10.4 ms at 144 Hz) and the CPU time spent rendering. Logs every 5 s and when a
+    /// style goes idle.
+    /// Intervals come from the display link's target timestamps (when frames reach the screen),
+    /// not from when the main thread happened to run.
+    private func recordFrame(at start: CFTimeInterval, frameTime now: CFTimeInterval) {
+        stats.busy += CACurrentMediaTime() - start
         if stats.last > 0 {
             let dt = (now - stats.last) * 1000
             stats.frames += 1
-            if dt > 25 { stats.slow += 1 }
+            if dt > 1500 / Double(refreshRate) { stats.slow += 1 }
             stats.worst = max(stats.worst, dt)
+        } else {
+            stats.first = now
         }
         stats.last = now
+        if now - stats.first >= 5 { flushStats() }
+    }
+
+    private func flushStats() {
+        guard stats.frames > 0 else { return }
+        let fps = Double(stats.frames) / max(stats.last - stats.first, 0.001)
+        NSLog("QuietHours frames @%d Hz: %d frames, %.1f fps, missed: %d, worst %.1f ms, render CPU %.2f ms/frame",
+              refreshRate, stats.frames, fps, stats.slow, stats.worst, stats.busy * 1000 / Double(stats.frames))
+        stats = (0, 0, 0, 0, 0, 0)
     }
     /// Styles that are still between transitions (Prose) get no frames: the display link pauses
     /// and a timer renders once per second, on the second, until the style moves again.
@@ -201,11 +218,8 @@ final class QuietHoursView: ScreenSaverView {
         guard running, let style else { return }
         let wantsIdle = !style.wantsContinuousFrames
         if wantsIdle && !idle {
-            if logFrameStats && stats.frames > 0 {
-                NSLog("QuietHours frames: %d, slower than 25 ms: %d, worst %.1f ms, render CPU %.2f ms/frame",
-                      stats.frames, stats.slow, stats.worst, stats.busy * 1000 / Double(stats.frames))
-            }
-            stats = (0, 0, 0, 0, 0)
+            if logFrameStats { flushStats() }
+            stats = (0, 0, 0, 0, 0, 0)
             idle = true
             driver?.setPaused(true)
             scheduleIdleTick()
