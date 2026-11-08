@@ -7,6 +7,17 @@ enum Room {
 
     static let black = CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
 
+    /// Widest aspect a composition is laid out for. Wider screens (21:9, 32:9 super-ultrawides)
+    /// get the composition in a centred stage of this shape; backgrounds still fill the screen.
+    static let maxStageAspect: CGFloat = 16.0 / 9.0
+
+    /// The centred area compositions that place things by screen-width fractions (Poster, Prose,
+    /// Board) lay out in. Equal to `bounds` on 16:10, 16:9 and anything narrower.
+    static func stage(_ bounds: CGRect) -> CGRect {
+        let w = min(bounds.width, bounds.height * maxStageAspect)
+        return CGRect(x: bounds.minX + (bounds.width - w) / 2, y: bounds.minY, width: w, height: bounds.height)
+    }
+
     /// Background frame, oversized so the burn-in shift never uncovers an edge.
     static func frame(_ bounds: CGRect) -> CGRect {
         bounds.insetBy(dx: -shiftMargin, dy: -shiftMargin)

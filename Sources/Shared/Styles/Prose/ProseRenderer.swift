@@ -281,7 +281,7 @@ final class ProseRenderer: ClockStyle {
     /// Lays the words out in balanced lines, left aligned at the 9% inset, block centered vertically.
     private func place() {
         guard !words.isEmpty else { return }
-        let fs = fontSize, W = bounds.width, H = bounds.height
+        let fs = fontSize, stage = Room.stage(bounds), W = stage.width, H = bounds.height
         let space = ProseLayout.spaceWidth(fontSize: fs)
         var widths = words.map(\.shape.width)
         widths[widths.count - 1] += (ProseLayout.caretGap + ProseLayout.caretWidth) * fs   // caret rides on the last word
@@ -293,7 +293,7 @@ final class ProseRenderer: ClockStyle {
         let lineBox = ProseLayout.lineHeight * fs
         let blockHeight = CGFloat(lines.count) * lineBox + (ProseLayout.captionGapUnits + ProseLayout.captionSizeUnits) * unit
         let top = (H - blockHeight) / 2
-        let left = W * ProseLayout.insetFraction
+        let left = stage.minX + W * ProseLayout.insetFraction
 
         for (li, line) in lines.enumerated() {
             let baseline = top + CGFloat(li) * lineBox + (lineBox - (ascent + descent)) / 2 + ascent

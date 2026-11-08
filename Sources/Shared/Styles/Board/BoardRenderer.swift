@@ -189,10 +189,10 @@ final class BoardRenderer: ClockStyle {
         self.bounds = bounds
         self.scale = scale
         chrome.layout(bounds: bounds, scale: scale)
-        let W = bounds.width, H = bounds.height
+        let stage = Room.stage(bounds), W = stage.width, H = bounds.height
         u = max(min(W / 100, H / M.minHeightUnits), 0.01)
-        side = M.padSide * u
-        contentW = W - 2 * side
+        side = stage.minX + M.padSide * u
+        contentW = W - 2 * M.padSide * u
 
         bigFace = BoardFace(size: M.bigSize * u, weight: 800, width: 78, tracking: -0.01)
         cityFace = BoardFace(size: M.citySize * u, weight: 620, width: 100)

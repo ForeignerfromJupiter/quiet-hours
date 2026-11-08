@@ -91,7 +91,8 @@ final class PosterRenderer: ClockStyle {
         background.startPoint = CGPoint(x: 0.5, y: 0.46)
         background.endPoint = CGPoint(x: 0.5 + r / max(bounds.width, 1), y: 0.46 + r / max(bounds.height, 1))
         for (i, g) in grid.enumerated() {
-            g.frame = CGRect(x: bounds.width * CGFloat(i + 1) / 6, y: 0, width: 1 / scale, height: bounds.height)
+            let stage = Room.stage(bounds)
+            g.frame = CGRect(x: stage.minX + stage.width * CGFloat(i + 1) / 6, y: 0, width: 1 / scale, height: bounds.height)
         }
         for l in [ink, accent, accentMask] { l.frame = bounds; l.contentsScale = scale }
         for c in captions { c.contentsScale = scale }
@@ -162,9 +163,9 @@ final class PosterRenderer: ClockStyle {
 
     /// Adds a number set in Anybody 800 condensed at `spec.size × H`, aligned on its baseline.
     private func add(_ text: String, _ spec: PosterLayout.Text, dx: CGFloat, dy: CGFloat, to path: CGMutablePath) {
-        let H = bounds.height, W = bounds.width
+        let H = bounds.height, stage = Room.stage(bounds), W = stage.width
         let (glyphs, width) = numberPath(text, size: spec.size * H)
-        var x = spec.x * W + dx
+        var x = stage.minX + spec.x * W + dx
         switch spec.align {
         case .left: break
         case .right: x -= width
@@ -175,9 +176,9 @@ final class PosterRenderer: ClockStyle {
 
     private func addDisc(_ d: PosterLayout.Disc, scale s: Double, dy: CGFloat, to path: CGMutablePath, _ discs: CGMutablePath) {
         guard s > 0.01 else { return }
-        let H = bounds.height, W = bounds.width
+        let H = bounds.height, stage = Room.stage(bounds), W = stage.width
         let r = d.r * H * CGFloat(s)
-        let rect = CGRect(x: d.x * W - r, y: d.y * H + dy - r, width: 2 * r, height: 2 * r)
+        let rect = CGRect(x: stage.minX + d.x * W - r, y: d.y * H + dy - r, width: 2 * r, height: 2 * r)
         path.addEllipse(in: rect)
         discs.addEllipse(in: rect)
     }
@@ -223,12 +224,12 @@ final class PosterRenderer: ClockStyle {
         guard key != captionKey else { return }
         captionKey = key
 
-        let W = bounds.width, H = bounds.height
+        let stage = Room.stage(bounds), W = stage.width, H = bounds.height
         let fs = max(9, W * 0.0118)
         let spaced: (String) -> String = { $0.map(String.init).joined(separator: " ") }
         let lines = c.atTop ? [l1, l2] : [l1, l2]
         let lineH = fs * 1.4
-        let x = c.x * W
+        let x = stage.minX + c.x * W
         for (i, l) in captions.enumerated() {
             let s = NSMutableAttributedString(string: spaced(lines[i]), attributes: [
                 .font: Fonts.label(size: fs),

@@ -105,6 +105,20 @@ final class CubicBezierTests: XCTestCase {
 }
 
 final class RoomTests: XCTestCase {
+    func testStageOnlyNarrowsUltrawides() {
+        let normal = CGRect(x: 0, y: 0, width: 1600, height: 1000)          // 16:10
+        XCTAssertEqual(Room.stage(normal), normal)
+        let hd = CGRect(x: 0, y: 0, width: 1920, height: 1080)              // 16:9
+        XCTAssertEqual(Room.stage(hd).width, 1920, accuracy: 0.001)
+        let superWide = CGRect(x: 0, y: 0, width: 5120, height: 1440)       // 32:9, 49"
+        let s = Room.stage(superWide)
+        XCTAssertEqual(s.width, 2560, accuracy: 0.001)
+        XCTAssertEqual(s.midX, superWide.midX, accuracy: 0.001)
+        XCTAssertEqual(s.height, 1440)
+        let portrait = CGRect(x: 0, y: 0, width: 1080, height: 1920)
+        XCTAssertEqual(Room.stage(portrait), portrait)
+    }
+
     func testPureBlackOnlyAffectsDarkFinish() {
         let c = srgb(0x111111), e = srgb(0x000000), light = srgb(0xeeeeee)
         XCTAssertEqual(Room.colors(center: c, edge: e, appearance: .dark, pureBlack: true), [Room.black, Room.black])
