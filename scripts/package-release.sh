@@ -1,57 +1,80 @@
 #!/usr/bin/env bash
-# Builds the downloadable release: dist/QuietHours-<version>.zip, holding the eight savers,
-# install instructions and the licenses.
+# Builds the downloadable release: dist/QuietHours-<version>.zip (+ .sha256) holding the eight
+# savers, install instructions and licenses — signed with Developer ID and notarized by Apple,
+# so they install with no Gatekeeper warning on any Mac.
 #
-#   scripts/package-release.sh
+#   scripts/package-release.sh            full run: archive, sign, notarize, package
+#   scripts/package-release.sh --reuse    repackage from the last notarized build (no new upload)
 #
-# Signing, best available:
-#   1. "Developer ID Application" certificate in your keychain → signed for distribution
-#      (hardened runtime, secure timestamp). Required for other people's Macs to accept it.
-#   2. Otherwise the Apple Development signature from the normal build is kept, and the zip is
-#      marked as a local test build: it works on this Mac, but Gatekeeper blocks it elsewhere.
-#
-# Notarization (only with Developer ID): if a notarytool keychain profile named "quiethours"
-# exists, the zip is submitted to Apple and the result is stapled to each saver. Create it once:
-#   xcrun notarytool store-credentials quiethours --apple-id <you@example.com> --team-id HVFYWZDVQH
-# (it asks for an app-specific password from appleid.apple.com; nothing is stored in the repo).
+# How: Xcode's Developer ID export and notarization only work on app archives, so we archive
+# QuietHoursRelease (a packaging-only app carrying the savers in Contents/PlugIns), export it with
+# method developer-id + destination upload (Apple's cloud-managed Developer ID certificate, then
+# the notary service, both through the developer account signed into Xcode — no passwords or
+# keys here), wait for the notarized copy, and lift the savers out of it. Same flow as Ducky's
+# release script. Needs: Xcode signed into the HVFYWZDVQH team account.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DERIVED="$ROOT/build/DerivedData"
-DIST="$ROOT/dist"
-STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module)
-PROFILE="${NOTARY_PROFILE:-quiethours}"
-
 cd "$ROOT"
+STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module)
+BUILD="$ROOT/build/release"
+ARCHIVE="$BUILD/QuietHoursRelease.xcarchive"
+DIST="$ROOT/dist"
 VERSION="$(awk -F': *' '/MARKETING_VERSION:/ {print $2; exit}' project.yml | tr -d '"')"
 NAME="QuietHours-$VERSION"
 STAGE="$DIST/stage/Quiet Hours"
 
 command -v xcodegen >/dev/null || brew install xcodegen
 xcodegen generate --quiet
-echo "Building ${#STYLES[@]} savers $VERSION (Release, arm64 + x86_64)…"
-xcodebuild -project QuietHours.xcodeproj -scheme Savers -configuration Release \
-  -destination "generic/platform=macOS" -derivedDataPath "$DERIVED" -allowProvisioningUpdates -quiet build
+CARRIER="$BUILD/notarized/QuietHoursRelease.app"
+REUSE=0
+[[ "${1:-}" == "--reuse" && -d "$CARRIER" ]] && REUSE=1
+[[ $REUSE == 1 ]] || rm -rf "$BUILD"
+rm -rf "$DIST/stage" "$DIST/$NAME.zip" "$DIST/$NAME.zip.sha256"
+mkdir -p "$BUILD" "$STAGE"
 
-rm -rf "$DIST/stage" "$DIST/$NAME.zip"
-mkdir -p "$STAGE"
+if [[ $REUSE == 0 ]]; then
+
+echo "==> archiving $VERSION (Release, arm64 + x86_64)"
+xcodebuild -project QuietHours.xcodeproj -scheme QuietHoursRelease -configuration Release \
+  -destination 'generic/platform=macOS' -derivedDataPath "$ROOT/build/DerivedData" \
+  -archivePath "$ARCHIVE" -allowProvisioningUpdates archive > "$BUILD/archive.log" 2>&1 \
+  || { tail -20 "$BUILD/archive.log"; exit 1; }
+
+echo "==> signing with Developer ID and uploading to Apple's notary service"
+xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist scripts/export/DeveloperID-notarize.plist \
+  -exportPath "$BUILD/notarize-upload" -allowProvisioningUpdates > "$BUILD/notarize-upload.log" 2>&1 \
+  || { tail -20 "$BUILD/notarize-upload.log"; exit 1; }
+
+echo "==> waiting for notarization (usually a few minutes)"
+for i in $(seq 1 60); do
+  rm -rf "$BUILD/notarized"
+  if xcodebuild -exportNotarizedApp -archivePath "$ARCHIVE" -exportPath "$BUILD/notarized" > "$BUILD/notarized.log" 2>&1; then
+    break
+  fi
+  if (( i == 60 )); then echo "notarization not finished after 20 minutes"; tail -20 "$BUILD/notarized.log"; exit 1; fi
+  sleep 20
+done
+fi   # REUSE
+
+echo "==> lifting the notarized savers out"
 for s in "${STYLES[@]}"; do
-  ditto "$DERIVED/Build/Products/Release/Quiet Hours – $s.saver" "$STAGE/Quiet Hours – $s.saver"
+  saver="Quiet Hours – $s.saver"
+  ditto "$CARRIER/Contents/PlugIns/$saver" "$STAGE/$saver"
+  codesign --verify --strict "$STAGE/$saver"
+  info="$(codesign -dv --verbose=2 "$STAGE/$saver" 2>&1)"   # capture first: grep -q + pipefail = false alarms
+  [[ "$info" == *"Authority=Developer ID Application"* ]] || { echo "$saver is not signed with Developer ID"; exit 1; }
+  # Staple the ticket into the saver itself so it validates offline (best effort).
+  xcrun stapler staple "$STAGE/$saver" >/dev/null 2>&1 || echo "   (no stapled ticket for $s: Gatekeeper will check online)"
 done
 
-IDENTITY="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
-if [[ -n "$IDENTITY" ]]; then
-  echo "Signing with: $IDENTITY"
-  for s in "${STYLES[@]}"; do
-    codesign --force --options runtime --timestamp --sign "$IDENTITY" "$STAGE/Quiet Hours – $s.saver"
-  done
-  DISTRIBUTABLE=1
-else
-  echo "⚠︎  No 'Developer ID Application' certificate found: keeping the Apple Development signature."
-  echo "   This zip works on this Mac only; other Macs will block it. See the header of this script."
-  DISTRIBUTABLE=0
-fi
-for s in "${STYLES[@]}"; do codesign --verify --strict "$STAGE/Quiet Hours – $s.saver"; done
+echo "==> Gatekeeper check, as if downloaded"
+CHECK="$(mktemp -d)"
+ditto "$STAGE/Quiet Hours – Hinge.saver" "$CHECK/Quiet Hours – Hinge.saver"
+xattr -w com.apple.quarantine "0081;$(printf %x "$(date +%s)");Safari;" "$CHECK/Quiet Hours – Hinge.saver"
+spctl --assess --type install -vv "$CHECK/Quiet Hours – Hinge.saver" 2>&1 | head -3
+spctl --assess --type install "$CHECK/Quiet Hours – Hinge.saver"   # fails the script unless accepted
+rm -rf "$CHECK"
 
 cp LICENSE "$STAGE/LICENSE.txt"
 cp Resources/Fonts/OFL-Anybody.txt Resources/Fonts/OFL-InstrumentSerif.txt "$STAGE/"
@@ -72,26 +95,12 @@ UNINSTALL
 Right-click the saver in System Settings → Screen Saver and choose "Delete", or remove it from
 ~/Library/Screen Savers (or /Library/Screen Savers if you installed it for all users).
 
-Free and open source (MIT). Fonts: SIL Open Font License, see the OFL files.
+Free and open source (MIT): https://github.com/ForeignerfromJupiter/quiet-hours
+Fonts: SIL Open Font License, see the OFL files.
 EOF
-if [[ "$DISTRIBUTABLE" == 0 ]]; then
-  printf '\nNOTE: this is a local test build, not signed for distribution.\n' >> "$STAGE/How to install.txt"
-fi
 
 # Strip extended attributes first so the zip has no "._" sidecar entries.
-zip_it() { xattr -cr "$STAGE"; (cd "$DIST/stage" && ditto -c -k --norsrc --keepParent "Quiet Hours" "$DIST/$NAME.zip"); }
-zip_it
-
-if [[ "$DISTRIBUTABLE" == 1 ]] && xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
-  echo "Notarizing $NAME.zip with Apple (usually a few minutes)…"
-  xcrun notarytool submit "$DIST/$NAME.zip" --keychain-profile "$PROFILE" --wait
-  # Staple the ticket into each saver so it validates offline, then re-zip.
-  for s in "${STYLES[@]}"; do xcrun stapler staple "$STAGE/Quiet Hours – $s.saver" || true; done
-  rm -f "$DIST/$NAME.zip"; zip_it
-  spctl --assess --type install -vv "$STAGE/Quiet Hours – Hinge.saver" || true
-elif [[ "$DISTRIBUTABLE" == 1 ]]; then
-  echo "⚠︎  Signed but not notarized: no notarytool profile '$PROFILE'. See the header of this script."
-fi
-
-shasum -a 256 "$DIST/$NAME.zip" | tee "$DIST/$NAME.zip.sha256"
+xattr -cr "$STAGE"
+(cd "$DIST/stage" && ditto -c -k --norsrc --keepParent "Quiet Hours" "$DIST/$NAME.zip")
+(cd "$DIST" && shasum -a 256 "$NAME.zip" | tee "$NAME.zip.sha256")
 echo "Done: $DIST/$NAME.zip"

@@ -77,6 +77,61 @@ targets:
     templates: [Saver]
     templateAttributes: { styleId: module, styleName: Module }
 
+  # Packaging vehicle only (scripts/package-release.sh): Developer ID export and notarization
+  # need an app archive, so this app carries the savers in Contents/PlugIns. Never shipped.
+  QuietHoursRelease:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/ReleaseCarrier
+    dependencies:
+      - target: QuietHoursHinge
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursChorus
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursBreath
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursLumen
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursProse
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursSlice
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursPoster
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursModule
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+    settings:
+      base:
+        PRODUCT_NAME: QuietHoursRelease
+        PRODUCT_BUNDLE_IDENTIFIER: com.ashik.quiethours.release
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Quiet Hours Release Carrier
+
   # Plain app that hosts the same view in a resizable window. Day-to-day iteration happens here.
   QuietHoursPreview:
     type: application
@@ -122,6 +177,12 @@ schemes:
         QuietHoursSlice: all
         QuietHoursPoster: all
         QuietHoursModule: all
+  QuietHoursRelease:
+    build:
+      targets:
+        QuietHoursRelease: all
+    archive:
+      config: Release
   QuietHoursPreview:
     build:
       targets:

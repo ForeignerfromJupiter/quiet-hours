@@ -47,9 +47,10 @@ Supports macOS 12 Monterey and later on Apple Silicon and Intel.
 scripts/package-release.sh   # → dist/QuietHours-<version>.zip (+ .sha256)
 ```
 
-It signs with a *Developer ID Application* certificate and notarizes with Apple when they are set
-up (see the script's header); without them it produces a local test build that only this Mac
-accepts. Attach the zip to a GitHub Release.
+It archives a packaging-only app that carries the eight savers, has Xcode sign it with the
+team's (cloud-managed) Developer ID certificate and notarize it with Apple, then lifts the
+notarized savers out into the zip and checks them with Gatekeeper. Xcode must be signed into the
+developer account; no passwords or keys live in the repo. Attach the zip to a GitHub Release.
 
 ## License
 
