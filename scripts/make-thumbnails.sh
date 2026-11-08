@@ -19,7 +19,8 @@ APP="$DERIVED/Build/Products/Release/QuietHoursPreview.app"
 BIN="$APP/Contents/MacOS/QuietHoursPreview"
 DOMAIN=com.ashik.quiethours.preview
 WORK="$(mktemp -d)"
-trap 'pkill -x QuietHoursPreview 2>/dev/null || true; rm -rf "$WORK"' EXIT
+PID=""
+trap '[[ -n "$PID" ]] && kill "$PID" 2>/dev/null; rm -rf "$WORK"' EXIT
 
 # Style | clock time shown | seconds to wait for the style to settle | framing (frame or bleed)
 SHOTS=(
@@ -31,6 +32,11 @@ SHOTS=(
   "Slice 10:10:20 3"
   "Poster 09:41:20 3 bleed"
   "Module 10:10:20 3"
+  "Board 10:10:20 3"
+  "Specimen 10:10:20 3"
+  "Ticker 10:10:20 3"
+  "Shutter 10:10:20 3"
+  "Echo 10:10:20 3"
 )
 
 cd "$ROOT"
@@ -38,16 +44,13 @@ xcodegen generate --quiet
 xcodebuild -project QuietHours.xcodeproj -scheme QuietHoursPreview -configuration Release \
   -destination "generic/platform=macOS" -derivedDataPath "$DERIVED" -quiet build
 
-# Tiny helper: CGWindowID of the Preview's largest on-screen window.
+# Tiny helper: CGWindowID of the largest on-screen window owned by a given PID.
 cat > "$WORK/winid.swift" <<'EOF'
 import CoreGraphics
+let pid = Int32(CommandLine.arguments[1])!
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-let mine = list.filter { ($0["kCGWindowOwnerName"] as? String)?.contains("Quiet Hours") == true }
-let best = mine.max { a, b in
-  let wa = (a["kCGWindowBounds"] as? [String: Double])?["Width"] ?? 0
-  let wb = (b["kCGWindowBounds"] as? [String: Double])?["Width"] ?? 0
-  return wa < wb
-}
+let mine = list.filter { ($0["kCGWindowOwnerPID"] as? Int32) == pid }
+let best = mine.max { (($0["kCGWindowBounds"] as? [String: Double])?["Width"] ?? 0) < (($1["kCGWindowBounds"] as? [String: Double])?["Width"] ?? 0) }
 if let id = best?["kCGWindowNumber"] { print(id) }
 EOF
 swiftc -O -o "$WORK/winid" "$WORK/winid.swift" 2>/dev/null
@@ -63,13 +66,12 @@ for shot in "${SHOTS[@]}"; do
   defaults -currentHost write "$DOMAIN" style "$style"
   defaults -currentHost write "$DOMAIN" "finish.$style" dark
 
-  pkill -x QuietHoursPreview 2>/dev/null || true; sleep 0.5
-  "$BIN" -QHBare 1240x800 -QHTime "$time" >/dev/null 2>&1 & disown
+  "$BIN" -QHBare 1240x800 -QHTime "$time" >/dev/null 2>&1 & PID=$!
   sleep "$wait"
-  wid="$("$WORK/winid")"
+  wid=""; for _ in $(seq 1 30); do wid="$("$WORK/winid" "$PID")"; [[ -n "$wid" ]] && break; sleep 0.3; done
   [[ -n "$wid" ]] || { echo "Preview window not found for $name" >&2; exit 1; }
   screencapture -x -o -l "$wid" "$WORK/$name.png"
-  pkill -x QuietHoursPreview 2>/dev/null || true
+  kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true; sleep 0.8
 
   out="$ROOT/Resources/Thumbnails/$name"
   mkdir -p "$out"

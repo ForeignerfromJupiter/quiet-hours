@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$HOME/Library/Screen Savers"
 DERIVED="$ROOT/build/DerivedData"
-STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module)
+STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module Echo Shutter Ticker Specimen Board)
 
 refresh_thumbnails() {
   local cache

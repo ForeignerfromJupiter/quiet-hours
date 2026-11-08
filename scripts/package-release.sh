@@ -16,7 +16,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module)
+STYLES=(Hinge Chorus Breath Lumen Prose Slice Poster Module Echo Shutter Ticker Specimen Board)
 BUILD="$ROOT/build/release"
 ARCHIVE="$BUILD/QuietHoursRelease.xcarchive"
 DIST="$ROOT/dist"

@@ -59,6 +59,11 @@ enum ClockStyles {
         case .slice: return SliceRenderer(context: context)
         case .poster: return PosterRenderer(context: context)
         case .module: return ModuleRenderer(context: context)
+        case .board: return BoardRenderer(context: context)
+        case .specimen: return SpecimenRenderer(context: context)
+        case .ticker: return TickerRenderer(context: context)
+        case .shutter: return ShutterRenderer(context: context)
+        case .echo: return EchoRenderer(context: context)
         }
     }
 }

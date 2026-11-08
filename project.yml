@@ -76,6 +76,21 @@ targets:
   QuietHoursModule:
     templates: [Saver]
     templateAttributes: { styleId: module, styleName: Module }
+  QuietHoursBoard:
+    templates: [Saver]
+    templateAttributes: { styleId: board, styleName: Board }
+  QuietHoursSpecimen:
+    templates: [Saver]
+    templateAttributes: { styleId: specimen, styleName: Specimen }
+  QuietHoursTicker:
+    templates: [Saver]
+    templateAttributes: { styleId: ticker, styleName: Ticker }
+  QuietHoursShutter:
+    templates: [Saver]
+    templateAttributes: { styleId: shutter, styleName: Shutter }
+  QuietHoursEcho:
+    templates: [Saver]
+    templateAttributes: { styleId: echo, styleName: Echo }
 
   # Packaging vehicle only (scripts/package-release.sh): Developer ID export and notarization
   # need an app archive, so this app carries the savers in Contents/PlugIns. Never shipped.
@@ -121,6 +136,31 @@ targets:
         copy:
           destination: plugins
       - target: QuietHoursModule
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursBoard
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursSpecimen
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursTicker
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursShutter
+        embed: true
+        codeSign: true
+        copy:
+          destination: plugins
+      - target: QuietHoursEcho
         embed: true
         codeSign: true
         copy:
@@ -177,6 +217,11 @@ schemes:
         QuietHoursSlice: all
         QuietHoursPoster: all
         QuietHoursModule: all
+        QuietHoursBoard: all
+        QuietHoursSpecimen: all
+        QuietHoursTicker: all
+        QuietHoursShutter: all
+        QuietHoursEcho: all
   QuietHoursRelease:
     build:
       targets:
