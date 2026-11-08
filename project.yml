@@ -1,0 +1,94 @@
+name: QuietHours
+
+options:
+  bundleIdPrefix: com.ashik.quiethours
+  deploymentTarget:
+    macOS: "12.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: HVFYWZDVQH
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
+    MACOSX_DEPLOYMENT_TARGET: "12.0"
+    SWIFT_VERSION: "5.0"
+    ARCHS: "$(ARCHS_STANDARD)"
+    ENABLE_HARDENED_RUNTIME: YES
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+    SWIFT_STRICT_CONCURRENCY: minimal
+  configs:
+    Release:
+      ONLY_ACTIVE_ARCH: NO
+
+targets:
+  # The screensaver bundle. Principal class: QuietHoursView.
+  QuietHours:
+    type: bundle
+    platform: macOS
+    sources:
+      - path: Sources/Shared
+      - path: Resources/Fonts
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: QuietHours
+        PRODUCT_BUNDLE_IDENTIFIER: com.ashik.quiethours.saver
+        WRAPPER_EXTENSION: saver
+        INFOPLIST_FILE: Sources/Saver/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        INSTALL_PATH: "$(HOME)/Library/Screen Savers"
+        SKIP_INSTALL: YES
+
+  # Plain app that hosts the same view in a resizable window. Day-to-day iteration happens here.
+  QuietHoursPreview:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Shared
+      - path: Sources/Preview
+      - path: Resources/Fonts
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: QuietHoursPreview
+        PRODUCT_BUNDLE_IDENTIFIER: com.ashik.quiethours.preview
+        INFOPLIST_FILE: Sources/Preview/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+
+  QuietHoursTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/QuietHoursTests
+    dependencies:
+      - target: QuietHoursPreview
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ashik.quiethours.tests
+        GENERATE_INFOPLIST_FILE: YES
+        # Tests only run on the dev Mac; XCTest itself requires 14.
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/QuietHoursPreview.app/Contents/MacOS/QuietHoursPreview"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  QuietHours:
+    build:
+      targets:
+        QuietHours: all
+  QuietHoursPreview:
+    build:
+      targets:
+        QuietHoursPreview: all
+        QuietHoursTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - QuietHoursTests
