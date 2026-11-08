@@ -59,14 +59,21 @@ enum SpecimenSheet {
 
     static let title = "QUIET HOURS / SPECIMEN / ANYBODY VARIABLE"
 
+    private static let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_GB")
+        df.dateFormat = "EEEE dd MMM"
+        return df
+    }()
+
     /// `toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'short'})`, upper-cased,
     /// then AM/PM and seconds (the prototype's double spaces collapse to one in HTML).
     static func dateLine(_ time: ClockTime, showSeconds: Bool, calendar: Calendar = .current) -> String {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_GB")
-        df.calendar = calendar
-        df.timeZone = calendar.timeZone
-        df.dateFormat = "EEEE dd MMM"
+        // One formatter, reconfigured only when the calendar changes: building or reconfiguring
+        // a DateFormatter costs about a millisecond (ICU setup).
+        let df = dateFormatter
+        if df.calendar != calendar { df.calendar = calendar }
+        if df.timeZone != calendar.timeZone { df.timeZone = calendar.timeZone }
         var parts = [df.string(from: time.date).uppercased().replacingOccurrences(of: ".", with: "")]
         if let m = time.meridiem { parts.append(m) }
         if showSeconds { parts.append(String(time.secondDigits)) }
@@ -80,18 +87,22 @@ enum SpecimenSheet {
 ///
 /// Every frame each cell builds its glyph paths from a Core Text instance of the bundled variable
 /// font at that cell's (wdth, wght), like Breath. Weights are whole numbers (as in the prototype),
-/// and a cell only rebuilds its path when its text, weight or size changed.
+/// and a cell only rebuilds its path when its text, weight or size changed. The weight wave moves
+/// every cell almost every frame, so that rebuild skips Core Text shaping (Anybody doesn't kern
+/// digits or the colon, so glyph advances give the same positions) and the live axis labels are
+/// shape paths from cached glyph outlines rather than text layers re-rasterised every frame.
 final class SpecimenRenderer: ClockStyle {
     private final class Cell {
         let row: Int, column: Int
         let clip = CALayer()             // `.sp-cell{overflow:hidden}`: clips to the padding box
         let glyphs = CAShapeLayer()      // `.t`
-        let label = CATextLayer()        // `.c`
+        let label = CAShapeLayer()       // `.c`, from cached glyph outlines
         var shown: String?               // `v`
         var next: String?                // `next`
         var start: Double = 0            // `t0` (seconds)
         var pathKey = ""
         var labelText = ""
+        var labelBaseline: CGFloat = 0
         var hot = false
         var hotFrom = 0.0, hotStart = -1e9
         var hotLevel = 0.0
@@ -112,6 +123,8 @@ final class SpecimenRenderer: ClockStyle {
     private var bounds = CGRect.zero, scale: CGFloat = 2
     private var unit: CGFloat = 1
     private var dateText = ""
+    private var dateSecond = Int.min
+    private var labelGlyphs = GlyphStrip(font: Fonts.label(size: 1), kern: 0.14)
     private var speed: Double { max(context.timeScale, 0.01) }
 
     init(context: StyleContext) {
@@ -141,9 +154,6 @@ final class SpecimenRenderer: ClockStyle {
         for c in cells {
             c.clip.masksToBounds = true
             c.clip.addSublayer(c.glyphs)
-            c.label.actions = still
-            c.label.isWrapped = false
-            c.label.alignmentMode = .left
             c.clip.addSublayer(c.label)
             root.addSublayer(c.clip)
         }
@@ -187,6 +197,7 @@ final class SpecimenRenderer: ClockStyle {
 
         // .sp-cell .c: 500 .95cqw/1 mono, letter-spacing .14em, padding-bottom 1.1 u
         let lf = Fonts.label(size: max(1, 0.95 * u))
+        labelGlyphs = GlyphStrip(font: lf, kern: 0.14)
         for c in cells {
             let x = gx + 1 + CGFloat(c.column) * cw, y = gy + 1 + CGFloat(c.row) * ch
             c.clip.frame = CGRect(x: x, y: y, width: max(0, cw - 1), height: max(0, ch - 1))
@@ -195,11 +206,13 @@ final class SpecimenRenderer: ClockStyle {
             let lBox = textBox(font: lf, lineTop: ch - 1 - 1.1 * u - 0.95 * u, lineHeight: 0.95 * u)
             c.label.frame = CGRect(x: 1.4 * u, y: lBox.y, width: max(0, cw - 1 - 2.8 * u), height: lBox.h)
             c.label.contentsScale = scale
+            c.labelBaseline = lf.ascender
             c.pathKey = ""
             c.labelText = ""
         }
         for l in [title, date] { l.contentsScale = scale }
         dateText = ""
+        dateSecond = Int.min
     }
 
     func render(time: ClockTime, frameTime: CFTimeInterval) {
@@ -208,7 +221,6 @@ final class SpecimenRenderer: ClockStyle {
         let txt = SpecimenSheet.text(time)
         let hot = SpecimenSheet.hotCell(second: time.second, millisecond: time.millisecond)
         let fs = 5.2 * unit                   // .sp-cell .t{font-size:5.2cqw;line-height:1}
-        let labelFont = Fonts.label(size: max(1, 0.95 * unit))
 
         for c in cells {
             // Text change → cascade (prototype frame(): c.v / c.next / c.t0 / c.sw)
@@ -252,10 +264,14 @@ final class SpecimenRenderer: ClockStyle {
             let lt = SpecimenSheet.label(width: wd, weight: wg)
             if lt != c.labelText {
                 c.labelText = lt
-                c.label.string = attributed(lt, font: labelFont, kern: 0.14)
+                c.label.path = labelGlyphs.path(lt, baseline: c.labelBaseline)
             }
         }
 
+        // The date line changes at most once a second.
+        let second = Int(time.date.timeIntervalSince1970.rounded(.down))
+        guard second != dateSecond else { return }
+        dateSecond = second
         let dl = SpecimenSheet.dateLine(time, showSeconds: context.showSeconds)
         if dl != dateText {
             dateText = dl
@@ -287,11 +303,26 @@ final class SpecimenRenderer: ClockStyle {
         guard key != c.pathKey else { return }
         c.pathKey = key
         let font = Fonts.anybody(size: size, weight: CGFloat(weight), width: CGFloat(width))
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
         let a = CTFontGetAscent(font), d = CTFontGetDescent(font)
         let baseline = 1.3 * unit + (size - (a + d)) / 2 + a
         let x0 = 1.4 * unit
         let path = CGMutablePath()
+        // Fast path: glyphs by character, positions from advances (no shaping, no kerning to lose).
+        let chars = Array(text.utf16)
+        var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+        if CTFontGetGlyphsForCharacters(font, chars, &glyphs, chars.count) {
+            var advances = [CGSize](repeating: .zero, count: glyphs.count)
+            CTFontGetAdvancesForGlyphs(font, .horizontal, glyphs, &advances, glyphs.count)
+            var x = x0
+            for i in glyphs.indices {
+                var t = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: x, ty: baseline)
+                if let g = CTFontCreatePathForGlyph(font, glyphs[i], &t) { path.addPath(g) }
+                x += advances[i].width
+            }
+            c.glyphs.path = path
+            return
+        }
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
         for run in (CTLineGetGlyphRuns(line) as? [CTRun]) ?? [] {
             let n = CTRunGetGlyphCount(run)
             guard n > 0 else { continue }
@@ -331,6 +362,7 @@ final class SpecimenRenderer: ClockStyle {
         chrome.apply(palette, pureBlack: context.pureBlack && appearance == .dark)
         for l in rules { l.backgroundColor = rule }
         for c in cells {
+            c.label.fillColor = muted
             c.fill = -1
             c.labelText = ""
         }
@@ -338,5 +370,53 @@ final class SpecimenRenderer: ClockStyle {
             title.string = attributed(SpecimenSheet.title, font: Fonts.label(size: max(1, 1.1 * unit)), kern: 0.22)
         }
         dateText = ""
+        dateSecond = Int.min
+    }
+}
+
+/// A single-line string drawn as one path from cached per-character glyph outlines, laid out by
+/// advance plus tracking (`letter-spacing`), for short labels that change every frame. Characters
+/// the font lacks fall back to a shaped line for that character.
+struct GlyphStrip {
+    let font: NSFont
+    let kern: CGFloat                       // em
+    private var cache: [Character: (path: CGPath?, advance: CGFloat)] = [:]
+
+    init(font: NSFont, kern: CGFloat) { self.font = font; self.kern = kern }
+
+    /// The path for `text` with its first baseline at `baseline` (y down), starting at x = 0.
+    mutating func path(_ text: String, baseline: CGFloat) -> CGPath {
+        let out = CGMutablePath()
+        var x: CGFloat = 0
+        let track = kern * font.pointSize
+        for ch in text {
+            let g = glyph(ch)
+            if let p = g.path { out.addPath(p, transform: CGAffineTransform(translationX: x, y: baseline)) }
+            x += g.advance + track
+        }
+        return out
+    }
+
+    private mutating func glyph(_ ch: Character) -> (path: CGPath?, advance: CGFloat) {
+        if let hit = cache[ch] { return hit }
+        let ct = font as CTFont
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: String(ch), attributes: [.font: font]))
+        let path = CGMutablePath()
+        for run in (CTLineGetGlyphRuns(line) as? [CTRun]) ?? [] {
+            let n = CTRunGetGlyphCount(run)
+            guard n > 0 else { continue }
+            var glyphs = [CGGlyph](repeating: 0, count: n), pos = [CGPoint](repeating: .zero, count: n)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: n), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: n), &pos)
+            let attrs = CTRunGetAttributes(run) as NSDictionary
+            let runFont: CTFont = attrs[kCTFontAttributeName].map { $0 as! CTFont } ?? ct
+            for i in 0..<n {
+                var t = CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: pos[i].x, ty: -pos[i].y)
+                if let g = CTFontCreatePathForGlyph(runFont, glyphs[i], &t) { path.addPath(g) }
+            }
+        }
+        let entry = (path: path.isEmpty ? nil : path as CGPath?, advance: CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil)))
+        cache[ch] = entry
+        return entry
     }
 }

@@ -103,3 +103,44 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
   machine: switch macOS appearance while the installed saver runs.
 - Windows prototype pushed as branch `windows-preview` (CI builds the .scr files; never run on
   Windows yet; eight of the thirteen styles).
+
+## Nov 9 2026: soak test and CPU pass
+
+`scripts/soak-test.sh` (four styles at a time in quadrant windows on one display, 6 min steady
+then 2 min of stop/start every 2 s, footprint sampled every 20 s) and `scripts/energy-check.sh`
+(each style full screen, average CPU). Results on an M4 Pro, 5K BenQ at 60 Hz:
+
+| Style | Memory (MB) | Growth | After 60 restarts | CPU full screen (% of one core) |
+|---|---|---|---|---|
+| Hinge | 28 | none | +1 | 2.0 |
+| Chorus | 29 | none | 0 | 2.4 |
+| Breath | 28 | none | 0 | 7.7 |
+| Lumen | 250 (GPU particle buffers) | none | 0 | 7.2 |
+| Prose | 35 | none | 0 (70 MB graphics spike per start, see below) | 1.0 |
+| Slice | 41 | none | −11 | 3.6 |
+| Poster | 29 | none | 0 | 2.4 (was ~5) |
+| Module | 28 | none | 0 | 1.2 |
+| Ticker | 29 | none | −1 | 1.9 |
+| Echo | 28 | none | +1 | 2.8 |
+| Shutter | 28 | none | 0 | 3.1 |
+| Specimen | 30 | none | 0 | 12.4 (was 24) |
+| Board | 27 | none | +1 | 1.5 |
+
+No crashes. The first run's churn phase switched windows to another style (the view re-reads the
+shared Preview setting on restart); fixed with `-QHStyle` and every style re-run with it.
+
+Open: each time Prose starts, ~70 MB of "owned physical footprint (graphics)" is allocated and
+released within about a second (seen at 400×300 with 1 s sampling; Hinge, Module and Board show no
+spike). Not cumulative, but worth finding: likely a large transient layer backing store in
+`start`/`layout` (background gradient over `Room.frame`, or the glyph layers' first rebuild). CPU excludes compositing (WindowServer).
+
+Fixed: Specimen and Poster built a `DateFormatter` every frame (~1 ms each, ICU setup); now one
+cached formatter, text rebuilt once a second. Specimen also skips Core Text shaping for its
+twelve live glyph runs (Anybody doesn't kern digits or the colon: same positions, verified) and
+draws its live axis labels from cached glyph outlines (`GlyphStrip`) instead of re-rasterising
+twelve text layers per frame. Still the heaviest: Specimen builds twelve variable-font instances
+and outlines per frame because the weight wave moves every cell (~16 µs per instance); a
+per-cell outline cache would cost ~10 MB.
+
+Not yet measured: Intel Macs, macOS 12–13, the real `legacyScreenSaver` host over hours, battery
+drain directly (`powermetrics` needs sudo).

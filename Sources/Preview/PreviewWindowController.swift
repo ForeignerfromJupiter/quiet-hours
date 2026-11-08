@@ -107,6 +107,12 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         // Debug launch arguments, e.g. `-QHTimeScale 10 -QHFlipIn 2`:
         // slow flips down and land the next minute change N seconds after launch.
         let args = UserDefaults.standard
+        // `-QHStyle chorus` pins this window's style (the saved setting is shared by every
+        // running Preview, and the view re-reads it on each restart).
+        if let id = args.string(forKey: "QHStyle").flatMap(StyleID.init(rawValue:)) {
+            saverView.styleOverride = id
+            saverView.restart()
+        }
         if args.double(forKey: "QHTimeScale") > 0 {
             saverView.timeScale = args.double(forKey: "QHTimeScale")
             slowCheck.state = saverView.timeScale > 1 ? .on : .off
@@ -138,6 +144,22 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
                 window.setFrame(NSRect(x: vf.midX - 640, y: vf.midY - 425, width: 1280, height: 850).intersection(vf), display: true)
             }
         }
+        // Soak testing (scripts/soak-test.sh):
+        // `-QHSlot 0…3` puts the window in that quadrant of the `-QHScreen` display (or the main one).
+        if args.object(forKey: "QHSlot") != nil, let window {
+            let i = args.object(forKey: "QHScreen") != nil ? args.integer(forKey: "QHScreen") : 0
+            let screen = NSScreen.screens.indices.contains(i) ? NSScreen.screens[i] : NSScreen.screens[0]
+            let vf = screen.visibleFrame, slot = args.integer(forKey: "QHSlot") % 4
+            let w = vf.width / 2, h = vf.height / 2
+            window.setFrame(NSRect(x: vf.minX + CGFloat(slot % 2) * w, y: vf.minY + CGFloat(1 - slot / 2) * h,
+                                   width: w, height: h), display: true)
+        }
+        // `-QHChurnAfter 360` restarts the view every 2 s from that many seconds on, the way the host
+        // starts and stops a saver over and over, to expose anything a start/stop cycle leaks.
+        if args.object(forKey: "QHChurnAfter") != nil {
+            let after = args.double(forKey: "QHChurnAfter")
+            DispatchQueue.main.asyncAfter(deadline: .now() + after) { [weak self] in self?.startChurn() }
+        }
         if args.bool(forKey: "QHFullScreen") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.window?.toggleFullScreen(nil) }
         }
@@ -152,6 +174,13 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         if !saverView.isAnimating { saverView.startAnimation() }
         syncControls()
         updateStatus()
+    }
+
+    private var churnTimer: Timer?
+    private func startChurn() {
+        churnTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            self?.saverView.restart()
+        }
     }
 
     // MARK: Actions

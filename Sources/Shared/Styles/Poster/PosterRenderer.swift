@@ -61,6 +61,14 @@ final class PosterRenderer: ClockStyle {
     private var hourChange = false
     private var pathCache: [String: (path: CGPath, width: CGFloat)] = [:]
     private var captionKey = ""
+    private var captionSpot = ""
+    private static let weekdayFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_GB")
+        df.timeZone = .autoupdatingCurrent
+        df.dateFormat = "EEEE"
+        return df
+    }()
     private var speed: Double { max(context.timeScale, 0.01) }
 
     init(context: StyleContext) {
@@ -97,7 +105,7 @@ final class PosterRenderer: ClockStyle {
         for l in [ink, accent, accentMask] { l.frame = bounds; l.contentsScale = scale }
         for c in captions { c.contentsScale = scale }
         pathCache.removeAll()
-        captionKey = ""
+        captionKey = ""; captionSpot = ""
     }
 
     // MARK: Frame
@@ -211,10 +219,12 @@ final class PosterRenderer: ClockStyle {
     /// "QUIET HOURS / NO. hh" with AM/PM and optional seconds.
     private func updateCaptions(_ time: ClockTime, layout c: PosterLayout.Caption, alpha: Float) {
         for l in captions where l.opacity != alpha { l.opacity = alpha }
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_GB")
-        df.dateFormat = "EEEE"
-        let day = df.string(from: time.date).uppercased()
+        // The text changes at most once a second; don't format dates every frame.
+        let second = Int(time.date.timeIntervalSince1970.rounded(.down))
+        let spot = "\(second)|\(c.x),\(c.y)"
+        guard spot != captionSpot else { return }
+        captionSpot = spot
+        let day = Self.weekdayFormatter.string(from: time.date).uppercased()
         let dm = Calendar.current.dateComponents([.day, .month], from: time.date)
         var l2 = "QUIET HOURS  /  NO. " + PosterLayout.hourText(time)
         if let m = time.meridiem { l2 += " " + m }
@@ -267,6 +277,6 @@ final class PosterRenderer: ClockStyle {
         accent.fillColor = palette.accent
         accentMask.fillColor = CGColor(gray: 0, alpha: 1)
         secondsBar.backgroundColor = palette.accent
-        captionKey = ""
+        captionKey = ""; captionSpot = ""
     }
 }

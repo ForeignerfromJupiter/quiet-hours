@@ -16,6 +16,8 @@ final class QuietHoursView: ScreenSaverView {
     var timeScale: Double = 1
     /// Settings to use instead of the stored ones (the Options sheet's live preview).
     var overrideSettings: Settings?
+    /// Preview debugging (`-QHStyle`): pins the style regardless of the saved setting.
+    var styleOverride: StyleID?
 
     /// Debug: log frame pacing for each burst of continuous frames (Preview `-QHFrameStats YES`).
     var logFrameStats = false
@@ -115,7 +117,7 @@ final class QuietHoursView: ScreenSaverView {
 
         // Host workaround 3: settings may have changed while an old instance lingered.
         settings = overrideSettings ?? Settings.load(from: defaults)
-        if let fixed = Self.fixedStyle { settings.style = fixed }
+        if let fixed = Self.fixedStyle ?? styleOverride { settings.style = fixed }
 
         // "Main display only": the other displays stay black and do no work at all.
         if !settings.allDisplays && !isPreview, let screen = window?.screen, !Self.isMainDisplay(screen) {

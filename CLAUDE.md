@@ -38,6 +38,8 @@ scripts/install-local.sh [--open | --uninstall]   # all five, Release universal 
 scripts/make-gallery.sh [Style…]   # README gallery: docs/images/<style>-dark/light.png + <style>.gif
 scripts/make-thumbnails.sh [Style]   # re-render Resources/Thumbnails/<Style>/thumbnail(@2x).png from the real renderer
 scripts/install-local.sh --refresh-thumbnails   # macOS never refreshes a cached tile image on its own
+scripts/soak-test.sh [steady-min] [churn-min] [screen] [style…]   # memory over time + restart churn
+scripts/energy-check.sh [screen] [seconds] [style…]   # full-screen CPU per style
 ```
 
 Every step must build with zero errors and zero warnings (ignore the `appintentsmetadataprocessor`
@@ -48,7 +50,8 @@ Preview debug launch arguments: `-QHTimeScale 10` (slow motion, all styles), `-Q
 `-QHFreeze 0.3` (Hinge only: hold every flip at 300 ms into its timeline), `-QHTime 20:07:57`
 (start the clock at that time), `-QHFrameStats YES` (logs frame pacing after each burst of
 animation), `-QHFullScreen YES`, `-QHScreen 1` (open on that display), `-QHBare 1240x800` (borderless,
-no controls; used for thumbnails). The window also has a "Next hour" button (Poster layouts). Serve `reference/` with the `reference` entry in
+no controls; used for thumbnails). `-QHStyle chorus` (pin this window's style), `-QHSlot 0…3` (window in that
+quadrant of the screen), `-QHChurnAfter 360` (restart the view every 2 s from then on; soak tests). The window also has a "Next hour" button (Poster layouts). Serve `reference/` with the `reference` entry in
 `.claude/launch.json` (http://localhost:8765) to view the prototype and ideas page live.
 Pick the style for a run with `defaults -currentHost write com.ashik.quiethours.preview style chorus`.
 The Preview app's settings live in `defaults -currentHost read com.ashik.quiethours.preview`.
