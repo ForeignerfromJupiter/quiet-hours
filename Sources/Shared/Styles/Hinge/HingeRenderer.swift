@@ -61,81 +61,139 @@ final class HingeRenderer: ClockStyle {
         resize()
     }
 
-    /// Sizes the cards for the row that is currently showing, then positions them.
-    /// Runs on layout and whenever the 12h leading card appears or disappears.
-    private func resize() {
-        guard bounds.width > 0, bounds.height > 0 else { return }
-        unit = HingeLayout.unit(width: bounds.width, height: bounds.height,
-                                leadingVisible: leadingVisible ?? true,
-                                showSeconds: context.showSeconds)
+    private var rowChange: LeadingSlotChange?
+    /// Unit the card layers were last laid out at; during a glide they are scaled from it.
+    private var layoutUnit: CGFloat = 0
 
-        let main = CGSize(width: cardSize.width * unit, height: cardSize.height * unit)
-        let small = CGSize(width: Self.secondCardSize.width * unit, height: Self.secondCardSize.height * unit)
-        let mainGlyphs = HingeGlyphs(cardSize: main)
-        for c in hourMinuteCards { c.layout(size: main, unit: unit, glyphs: mainGlyphs, scale: scale) }
-        if !secondCards.isEmpty {
-            let smallGlyphs = HingeGlyphs(cardSize: small)
-            for c in secondCards { c.layout(size: small, unit: unit, glyphs: smallGlyphs, scale: scale) }
-        }
-        updateLabelText()
-        positionRow()
+    private func targetUnit(leading: Bool) -> CGFloat {
+        HingeLayout.unit(width: bounds.width, height: bounds.height,
+                         leadingVisible: leading, showSeconds: context.showSeconds)
     }
 
-    /// Flex row: [HH] gap [MM] gap [SS], bottoms aligned, centered. A hidden leading card takes no space.
-    private func positionRow() {
-        guard unit > 0 else { return }
-        let showLeading = leadingVisible ?? true
-        var groups: [[HingeCard]] = [
-            showLeading ? [hourMinuteCards[0], hourMinuteCards[1]] : [hourMinuteCards[1]],
-            [hourMinuteCards[2], hourMinuteCards[3]],
-        ]
-        if !secondCards.isEmpty { groups.append(secondCards) }
+    /// Lays the cards out at `u` (rebuilding glyph paths), then positions the settled row.
+    private func resize() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        rowChange = nil
+        let leading = leadingVisible ?? true
+        layoutCards(at: targetUnit(leading: leading))
+        for c in allCards { c.container.isHidden = false }
+        hourMinuteCards[0].container.isHidden = !leading
+        hourMinuteCards[0].container.opacity = 1
+        positionRow(unit: layoutUnit, leading: leading ? 1 : 0)
+    }
 
-        func width(_ c: HingeCard) -> CGFloat { c.container.bounds.width }
-        let groupWidths = groups.map { g in g.map(width).reduce(0, +) + CGFloat(g.count - 1) * Self.pairGap * unit }
-        let total = groupWidths.reduce(0, +) + CGFloat(groups.count - 1) * Self.groupGap * unit
-        let mainHeight = cardSize.height * unit
+    private func layoutCards(at u: CGFloat) {
+        unit = u
+        layoutUnit = u
+        let main = CGSize(width: cardSize.width * u, height: cardSize.height * u)
+        let small = CGSize(width: Self.secondCardSize.width * u, height: Self.secondCardSize.height * u)
+        let mainGlyphs = HingeGlyphs(cardSize: main)
+        for c in hourMinuteCards { c.layout(size: main, unit: u, glyphs: mainGlyphs, scale: scale) }
+        if !secondCards.isEmpty {
+            let smallGlyphs = HingeGlyphs(cardSize: small)
+            for c in secondCards { c.layout(size: small, unit: u, glyphs: smallGlyphs, scale: scale) }
+        }
+        updateLabelText()
+    }
+
+    /// Flex row: [H]H gap MM gap [SS], bottoms aligned, centered, at `u` points per unit (the card
+    /// layers are scaled from `layoutUnit`). `leading` is how much of the leading card's slot is
+    /// open, 0…1: its slot narrows as it fades, and it sits just left of the second hour card.
+    private func positionRow(unit u: CGFloat, leading p: CGFloat) {
+        guard u > 0, layoutUnit > 0 else { return }
+        let k = u / layoutUnit
+        let t = k == 1 ? CATransform3DIdentity : CATransform3DMakeScale(k, k, 1)
+        let main = cardSize.width * u, small = Self.secondCardSize.width * u
+        let gap = Self.pairGap * u, groupGap = Self.groupGap * u
+        var total = p * (main + gap) + main + groupGap + 2 * main + gap
+        if !secondCards.isEmpty { total += groupGap + 2 * small + gap }
+        let mainHeight = cardSize.height * u
         let rowLeft = (bounds.width - total) / 2
         let rowTop = (bounds.height - mainHeight) / 2
         let rowBottom = rowTop + mainHeight
 
-        var x = rowLeft
-        for (gi, g) in groups.enumerated() {
-            for (ci, c) in g.enumerated() {
-                let s = c.container.bounds.size
-                c.container.position = CGPoint(x: x + s.width / 2, y: rowBottom - s.height / 2)
-                x += s.width + (ci < g.count - 1 ? Self.pairGap * unit : 0)
-            }
-            if gi < groups.count - 1 { x += Self.groupGap * unit }
+        func place(_ c: HingeCard, left: CGFloat, width: CGFloat, height: CGFloat) {
+            c.container.transform = t
+            c.container.position = CGPoint(x: left + width / 2, y: rowBottom - height / 2)
+        }
+        var x = rowLeft + p * (main + gap)
+        place(hourMinuteCards[0], left: x - main - gap, width: main, height: mainHeight)
+        place(hourMinuteCards[1], left: x, width: main, height: mainHeight)
+        x += main + groupGap
+        place(hourMinuteCards[2], left: x, width: main, height: mainHeight)
+        x += main + gap
+        place(hourMinuteCards[3], left: x, width: main, height: mainHeight)
+        x += main
+        if !secondCards.isEmpty {
+            let h = Self.secondCardSize.height * u
+            x += groupGap
+            place(secondCards[0], left: x, width: small, height: h)
+            place(secondCards[1], left: x + small + gap, width: small, height: h)
         }
 
         // .hinge-ampm { left: .3cqw; top: -3.2cqw; font: 1.4cqw/1 mono }
-        let fontSize = Self.labelSize * unit
-        label.frame = CGRect(x: rowLeft + 0.3 * unit, y: rowTop - Self.labelRise * unit,
-                             width: 12 * unit, height: fontSize * 1.4)
+        let fontSize = Self.labelSize * layoutUnit
+        label.transform = t
+        label.bounds = CGRect(x: 0, y: 0, width: 12 * layoutUnit, height: fontSize * 1.4)
+        label.position = CGPoint(x: rowLeft + 0.3 * u + 6 * u, y: rowTop - Self.labelRise * u + fontSize * 1.4 * k / 2)
     }
 
     func render(time: ClockTime, frameTime: CFTimeInterval) {
         let animate = hasRendered && !context.reduceMotion
+        let t = frameTime / max(context.timeScale, 0.01)
         let digits = time.digits
-        for (i, c) in hourMinuteCards.enumerated() { c.set(digits[i], now: frameTime, animate: animate) }
+        let leading = digits[0] != nil
+
+        if leading != leadingVisible {
+            let was = leadingVisible
+            leadingVisible = leading
+            if animate, let was, was != leading, bounds.width > 0 {
+                beginRowChange(opening: leading, at: t)
+            } else {
+                resize()
+            }
+        }
+        // While the row opens, the flips wait for it (a flip starting later holds the old face).
+        var flipAt = frameTime
+        if let change = rowChange { flipAt = max(frameTime, change.changeStart * max(context.timeScale, 0.01)) }
+        for (i, c) in hourMinuteCards.enumerated() { c.set(digits[i], now: flipAt, animate: animate) }
         if !secondCards.isEmpty {
             let s = time.secondDigits
             secondCards[0].set(s[0], now: frameTime, animate: animate)
             secondCards[1].set(s[1], now: frameTime, animate: animate)
         }
+        if let change = rowChange { advanceRowChange(change, at: t) }
 
-        let leading = digits[0] != nil
-        if leading != leadingVisible {
-            leadingVisible = leading
-            resize()
-        }
         if time.meridiem != meridiem || !hasRendered {
             meridiem = time.meridiem
             updateLabelText()
         }
         for c in allCards where c.isFlipping { c.update(now: frameTime) }
         hasRendered = true
+    }
+
+    private func beginRowChange(opening: Bool, at t: Double) {
+        let from = targetUnit(leading: !opening), to = targetUnit(leading: opening)
+        // Lay the cards out at the larger unit so the glide only ever scales them down.
+        layoutCards(at: max(from, to))
+        unit = from
+        let card0 = hourMinuteCards[0].container
+        card0.isHidden = false
+        card0.opacity = opening ? 0 : 1
+        rowChange = LeadingSlotChange(start: t, opening: opening, settle: HingeFlipTimeline.total)
+        positionRow(unit: from, leading: opening ? 0 : 1)
+    }
+
+    private func advanceRowChange(_ change: LeadingSlotChange, at t: Double) {
+        if change.isDone(at: t) {
+            resize()   // settle: crisp layout at the final unit, card 0 shown or hidden
+            return
+        }
+        let open = CGFloat(change.presence(at: t))
+        let u = targetUnit(leading: false) + (targetUnit(leading: true) - targetUnit(leading: false)) * open
+        unit = u
+        hourMinuteCards[0].container.opacity = Float(open)
+        positionRow(unit: u, leading: open)
     }
 
     func appearanceDidChange(_ appearance: Appearance) {
@@ -158,8 +216,8 @@ final class HingeRenderer: ClockStyle {
     }
 
     private func updateLabelText() {
-        guard let m = meridiem, unit > 0 else { label.string = nil; return }
-        let size = Self.labelSize * unit
+        guard let m = meridiem, layoutUnit > 0 else { label.string = nil; return }
+        let size = Self.labelSize * layoutUnit
         label.string = NSAttributedString(string: m, attributes: [
             .font: Fonts.label(size: size),
             .kern: 0.24 * size,

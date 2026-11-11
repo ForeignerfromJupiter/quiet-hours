@@ -55,6 +55,10 @@ struct ClockTime {
     }
 
     /// Seconds as two characters, always zero-padded.
+    /// Seconds as they appear beside a label: ":05", the tail of the time, so "05 PM" is never
+    /// read as a time of its own.
+    var secondsMark: String { ":" + String(secondDigits) }
+
     var secondDigits: [Character] { [Self.digit(second / 10), Self.digit(second % 10)] }
 
     /// "AM"/"PM" in 12h mode, nil in 24h mode.

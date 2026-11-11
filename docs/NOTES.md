@@ -10,15 +10,13 @@ Ideas and findings that don't belong to Phase 1. Not commitments.
 - **Lingering `legacyScreenSaver`.** We stop all work on `willstop`. Some savers also call
   `exit(0)` there, because the host process stays alive. Measure with Activity Monitor and
   Instruments over an hour before deciding; exiting would also kill the System Settings preview.
-- **12h layout jump.** At 9:59 → 10:00 (and 12:59 → 1:00) the leading card appears or disappears
-  and the row re-centers instantly, as in the prototype. A 300–400 ms slide would be nicer.
+- **12h layout jump.** Fixed Nov 12 2026 (`Common/LeadingSlotChange`), see below.
 - **Label font.** The prototype's AM/PM uses Geist Mono 500; we use SF Mono Medium. Bundling Geist
   Mono (OFL) would match exactly. Decide when Chorus and Breath need the same label.
 - **Gradient banding.** The dark radial room gradient can band on 8-bit panels. Option: draw it
   once into a bitmap with ±0.5/255 noise and use that as layer contents.
 - **Dim** (0–60%) and **Displays** (main only / all) are wired (Options panel, Nov 9 2026).
-- **Reduce motion.** Hinge flips are instant when Accessibility → Reduce motion is on, as in the
-  prototype. Apply the same rule to every style.
+- **Reduce motion.** Every style honours it (checked Nov 12 2026).
 - **Seconds cards** flip every second at 700 ms each. That's fine for CPU, but a "calm seconds"
   variant (no bounce) might suit them better.
 - **Debug harness.** The `-QHFreeze` and `-QHFlipIn` launch arguments made motion review easy.
@@ -145,3 +143,19 @@ per-cell outline cache would cost ~10 MB.
 
 Not yet measured: Intel Macs, macOS 12–13, the real `legacyScreenSaver` host over hours, battery
 drain directly (`powermetrics` needs sudo).
+
+## Nov 12 2026: polish review and fixes
+
+Reviewed all 13 in slow motion (`-QHTimeScale`) at minute and 12h hour changes, both finishes,
+32:9, 1:1, seconds and 24h. Fixed:
+- 12h hour change showed a wrong time ("2:59" at 1:00) in Hinge, Module, Echo; Slice snapped to
+  centre. Shared `LeadingSlotChange` timeline: change then glide (going), glide then change (opening).
+- Specimen overlapped at 32:9 and its widest cell hit the border: stage layout + fitted size.
+- Prose: kept words glide on reflow; line-changing words cross-fade.
+- Seconds labels read ":05" instead of "05 PM". Lumen strays pooled (flow field had divergence;
+  now a true curl). Poster captions knock out over numerals. Board rows capped on tall screens;
+  scramble digits stay plausible.
+- Left as designed: Chorus's idle hour clocks in 12h (centring would split the digit across the
+  pair gap), Ticker's stale item scrolling away (PRD rule).
+- Preview harness: `-QHStyle` now applies last (it reset `-QHTimeScale`); `-QHScreen` keeps a
+  `-QHBare` size.

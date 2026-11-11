@@ -209,7 +209,7 @@ final class BoardModelTests: XCTestCase {
         XCTAssertEqual(h12.date, "SUNDAY 08 NOVEMBER")
         let h24 = BoardModel.header(local: kolkata, at: utc("2026-11-08 16:39").addingTimeInterval(55), uses24Hour: true, showSeconds: true)
         XCTAssertEqual(h24.time, "22:09")
-        XCTAssertEqual(h24.sub, "UTC+5:30 · 55")
+        XCTAssertEqual(h24.sub, "UTC+5:30 · :55")
         // 19:00 UTC is already Monday in Kolkata.
         XCTAssertEqual(BoardModel.header(local: kolkata, at: utc("2026-11-08 19:00"), uses24Hour: true, showSeconds: false).date,
                        "MONDAY 09 NOVEMBER")
@@ -286,5 +286,18 @@ final class BoardRendererTests: XCTestCase {
         XCTAssertFalse(style.wantsContinuousFrames)
         style.appearanceDidChange(.light)
         style.stop()
+    }
+
+    func testScrambleNeverShowsAnImpossibleTime() {
+        for (target, hourTensMax) in [("11:40 PM", 1), ("23:59", 2)] {
+            for tick in 0..<400 {
+                let s = Array(BoardModel.scrambled(target, elapsed: Double(tick % 9) / 60, seed: tick)!)
+                let colon = s.firstIndex(of: ":")!
+                XCTAssertLessThanOrEqual(s[colon + 1].wholeNumberValue!, 5, String(s))
+                XCTAssertLessThanOrEqual(s[colon - 2].wholeNumberValue!, hourTensMax, String(s))
+            }
+        }
+        XCTAssertEqual(BoardModel.scrambleLimit(Array("4:40 AM"), at: 2), 5)
+        XCTAssertEqual(BoardModel.scrambleLimit(Array("4:40 AM"), at: 0), 9)
     }
 }

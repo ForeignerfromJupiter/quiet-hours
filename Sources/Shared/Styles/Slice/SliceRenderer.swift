@@ -7,6 +7,8 @@ import QuartzCore
 final class SliceRenderer: ClockStyle {
     static let ribbons = 14
     private static let duration = 0.76, ribbonStagger = 0.034, digitStagger = 0.13
+    /// A digit's change, from its start to its last ribbon settling.
+    private static let animEnd = duration + Double(ribbons - 1) / 2 * ribbonStagger + 0.02
 
     /// One ribbon: a clip, a skew layer (slant pivots on the ribbon's centre) and the images.
     private final class Ribbon {
@@ -44,6 +46,11 @@ final class SliceRenderer: ClockStyle {
     private let chrome = R3Chrome()
     private let slots = (0..<4).map { _ in Slot() }
     private let colon = (0..<6).map { _ in CALayer() }
+    /// Holds the ribbons and colon, so the 12h row can glide as one piece.
+    private let row = CALayer()
+    /// 12h: whether the leading digit is showing, and its slot opening or closing.
+    private var leadShown: Bool?
+    private var leadChange: LeadingSlotChange?
 
     private var bounds = CGRect.zero, scale: CGFloat = 2
     private var size: CGFloat = 0          // numeral size S
@@ -65,8 +72,9 @@ final class SliceRenderer: ClockStyle {
 
     func start(in root: CALayer) {
         chrome.install(in: root)
-        for s in slots { for r in s.ribbons { root.addSublayer(r.clip) } }
-        for c in colon { root.addSublayer(c) }
+        root.addSublayer(row)
+        for s in slots { for r in s.ribbons { row.addSublayer(r.clip) } }
+        for c in colon { row.addSublayer(c) }
         root.addSublayer(chrome.label)
         applyPalette()
     }
@@ -75,6 +83,8 @@ final class SliceRenderer: ClockStyle {
         self.bounds = bounds
         self.scale = scale
         chrome.layout(bounds: bounds, scale: scale)
+        row.transform = CATransform3DIdentity
+        row.frame = bounds
         layoutKey = ""
         cache.removeAll()
     }
@@ -86,22 +96,46 @@ final class SliceRenderer: ClockStyle {
         let reduce = context.reduceMotion
         let digits = time.digits
 
+        let lead = digits[0] != nil
+        if lead != leadShown {
+            if leadShown != nil, slots[0].isSet, !reduce {
+                // Going waits for every digit (four change at 12:59 → 1:00) before the row moves.
+                leadChange = LeadingSlotChange(start: T, opening: lead, settle: Self.animEnd + 3 * Self.digitStagger)
+            }
+            leadShown = lead
+        }
+        // While the leading slot opens, the digits wait for it.
+        let delay = leadChange.map { max(0, $0.changeStart - T) } ?? 0
         var order = 0
         for (i, s) in slots.enumerated() {
             let ch = digits[i] ?? " "
             guard !s.isSet || ch != s.ch else { continue }
-            if s.isSet && !reduce { s.old = s.ch; s.start = T + Double(order) * Self.digitStagger; order += 1 }
+            if s.isSet && !reduce { s.old = s.ch; s.start = T + delay + Double(order) * Self.digitStagger; order += 1 }
             s.ch = ch
             s.isSet = true
         }
 
         let mid = Double(Self.ribbons - 1) / 2
-        let animEnd = Self.duration + mid * Self.ribbonStagger + 0.02
+        let animEnd = Self.animEnd
         for s in slots where s.old != nil && T > s.start + animEnd { s.old = nil }
 
-        let visible = slots.indices.filter { slots[$0].ch != " " || (slots[$0].old.map { $0 != " " } ?? false) }
+        var visible = slots.indices.filter { slots[$0].ch != " " || (slots[$0].old.map { $0 != " " } ?? false) }
+        var glide: CGFloat?
+        if let change = leadChange {
+            if change.isDone(at: T) {
+                leadChange = nil
+            } else if T >= change.glideStart {
+                // The leading slot is empty while the row glides: lay out the short row and move it whole.
+                glide = CGFloat(change.presence(at: T))
+                visible = [1, 2, 3]
+            } else if !visible.contains(0) {
+                visible.insert(0, at: 0)   // going: hold the long row until the glide
+            }
+        }
         let key = visible.map(String.init).joined()
         if key != layoutKey { layoutKey = key; place(visible) }
+        let rowTransform = glide.map(glideTransform) ?? CATransform3DIdentity
+        if !CATransform3DEqualToTransform(row.transform, rowTransform) { row.transform = rowTransform }
 
         let S = size, w = S * 0.72, h = S * 1.02, bh = h / CGFloat(Self.ribbons)
         let scanF = (Double(time.second) + Double(time.millisecond) / 1000) / 60 * Double(Self.ribbons)
@@ -113,7 +147,7 @@ final class SliceRenderer: ClockStyle {
             let s = slots[i]
             let ink = glyph(s.ch, accent: false), acc = glyph(s.ch, accent: true)
             let oldImg = s.old.flatMap { glyph($0, accent: false) }
-            let anim = oldImg != nil && T <= s.start + animEnd   // a blank old digit just appears
+            let anim = s.old != nil && T <= s.start + animEnd    // a blank old digit leaves nothing to slide out
             for (b, r) in s.ribbons.enumerated() {
                 let by = top + CGFloat(b) * bh
                 let localY = top - by                      // image top in ribbon coordinates
@@ -164,6 +198,18 @@ final class SliceRenderer: ClockStyle {
 
         chrome.setLabel(R3Chrome.labelText(time, showSeconds: context.showSeconds))
         if cache.count > usedThisFrame.count { cache = cache.filter { usedThisFrame.contains($0.key) } }
+    }
+
+    /// Maps the short (three-digit) row as laid out to where the row stands when the leading slot
+    /// is `p` open: the size follows the row's width, the second hour digit leads the way.
+    private func glideTransform(_ p: CGFloat) -> CATransform3D {
+        let W = bounds.width, H = bounds.height
+        let units = 2.5 + 0.76 * p                         // 3 × 0.72 + 0.3 + 0.04, plus a digit and a gap
+        let S = min(H * 0.6, W * 0.86 / units)
+        let x1 = (W - units * S) / 2 + 0.76 * p * S
+        let k = S / max(size, 0.01)
+        let dx = x1 - W / 2 - k * (slots[1].x - W / 2)
+        return CATransform3DConcat(CATransform3DMakeScale(k, k, 1), CATransform3DMakeTranslation(dx, 0, 0))
     }
 
     /// Only touch `contents` when the image actually changes.
@@ -273,8 +319,7 @@ final class SliceRenderer: ClockStyle {
 
     func stop() {
         chrome.remove()
-        for s in slots { for r in s.ribbons { r.clip.removeFromSuperlayer() } }
-        for c in colon { c.removeFromSuperlayer() }
+        row.removeFromSuperlayer()
         cache.removeAll()
     }
 

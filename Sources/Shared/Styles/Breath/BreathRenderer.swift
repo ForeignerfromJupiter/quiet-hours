@@ -184,7 +184,7 @@ final class BreathRenderer: ClockStyle {
             CATransaction.commit()
         }
 
-        let text = [context.showSeconds ? String(time.secondDigits) : nil, time.meridiem].compactMap { $0 }.joined(separator: "   ")
+        let text = R3Chrome.labelText(time, showSeconds: context.showSeconds)
         if text != metaText { metaText = text; updateMeta(force: true) }
     }
 

@@ -139,7 +139,7 @@ enum BoardModel {
             sub = (h >= 12 ? "PM" : "AM") + " · " + sub
         }
         if showSeconds {
-            sub += String(format: " · %02d", calendar(local).component(.second, from: date))
+            sub += String(format: " · :%02d", calendar(local).component(.second, from: date))
         }
         return Header(city: localCityName(local).uppercased(),
                       time: time(local, at: date, uses24Hour: uses24Hour, meridiem: false),
@@ -176,15 +176,27 @@ enum BoardModel {
     static func scrambled(_ target: String, elapsed: Double, seed: Int) -> String? {
         guard elapsed <= scrambleDuration(target) else { return nil }
         let tick = Int((max(elapsed, 0) * 60).rounded(.down))
+        let chars = Array(target)
         var out = ""
-        for (j, ch) in target.enumerated() {
+        for (j, ch) in chars.enumerated() {
             if ch.isASCII, ch.isNumber, elapsed < scrambleLead + Double(j) * scrambleStep {
-                out.append(Character(String(randomDigit(seed: seed, slot: j, tick: tick))))
+                let top = scrambleLimit(chars, at: j)
+                out.append(Character(String(randomDigit(seed: seed, slot: j, tick: tick) % (top + 1))))
             } else {
                 out.append(ch)
             }
         }
         return out
+    }
+
+    /// Highest digit a scramble shows at position `j` of a time, so it never flashes an
+    /// impossible time like 34:41: minute tens up to 5, hour tens up to 1 (12h, the text ends in
+    /// AM/PM) or 2 (24h); any other digit up to 9.
+    static func scrambleLimit(_ chars: [Character], at j: Int) -> Int {
+        guard let colon = chars.firstIndex(of: ":") else { return 9 }
+        if j == colon + 1 { return 5 }
+        if j == colon - 2 { return chars.last == "M" ? 1 : 2 }
+        return 9
     }
 
     static func randomDigit(seed: Int, slot: Int, tick: Int) -> Int {

@@ -76,7 +76,7 @@ enum SpecimenSheet {
         if df.timeZone != calendar.timeZone { df.timeZone = calendar.timeZone }
         var parts = [df.string(from: time.date).uppercased().replacingOccurrences(of: ".", with: "")]
         if let m = time.meridiem { parts.append(m) }
-        if showSeconds { parts.append(String(time.secondDigits)) }
+        if showSeconds { parts.append(time.secondsMark) }
         return parts.joined(separator: " ")
     }
 }
@@ -122,6 +122,9 @@ final class SpecimenRenderer: ClockStyle {
 
     private var bounds = CGRect.zero, scale: CGFloat = 2
     private var unit: CGFloat = 1
+    /// Numeral size: 5.2 u as in the prototype, smaller if the widest cell would not fit its
+    /// column or the cells are too short (ultrawide screens).
+    private var fontSize: CGFloat = 5.2
     private var dateText = ""
     private var dateSecond = Int.min
     private var labelGlyphs = GlyphStrip(font: Fonts.label(size: 1), kern: 0.14)
@@ -164,13 +167,15 @@ final class SpecimenRenderer: ClockStyle {
         self.bounds = bounds
         self.scale = scale
         chrome.layout(bounds: bounds, scale: scale)
-        let u = bounds.width / 100
+        // The sheet is a page: on ultrawide screens it keeps to a centred stage at most 16:9.
+        let stage = Room.stage(bounds)
+        let u = stage.width / 100
         unit = u
         let px = 1 / max(scale, 1)
         let snap: (CGFloat) -> CGFloat = { ($0 * scale).rounded() / scale }
 
         // .spec{padding:4.5cqw 5cqw; grid-template-rows:auto 1fr; gap:2cqw}; header line box 1.1 u.
-        let gx = 5 * u, gw = bounds.width - 10 * u
+        let gx = stage.minX + 5 * u, gw = stage.width - 10 * u
         let headTop = 4.5 * u, headH = 1.1 * u
         let gy = headTop + headH + 2 * u
         let gh = max(1, bounds.height - 4.5 * u - gy)
@@ -194,6 +199,12 @@ final class SpecimenRenderer: ClockStyle {
             let y = j == 0 ? gy : gy + 1 + CGFloat(j) * ch - 1
             rules[SpecimenSheet.columns + 1 + j].frame = CGRect(x: snap(gx), y: snap(y), width: snap(gw), height: line)
         }
+
+        // The widest instance (last column at weight 900) must fit inside the cell's padding, and
+        // the numerals plus the axis label must fit its height.
+        let fitWidth = (cw - 1 - 2.8 * u) / Self.widestText
+        let fitHeight = ch - 1 - (1.3 + 1.1 + 0.95 + 0.8) * u
+        fontSize = max(1, min(5.2 * u, fitWidth, fitHeight))
 
         // .sp-cell .c: 500 .95cqw/1 mono, letter-spacing .14em, padding-bottom 1.1 u
         let lf = Fonts.label(size: max(1, 0.95 * u))
@@ -220,7 +231,7 @@ final class SpecimenRenderer: ClockStyle {
         let reduce = context.reduceMotion
         let txt = SpecimenSheet.text(time)
         let hot = SpecimenSheet.hotCell(second: time.second, millisecond: time.millisecond)
-        let fs = 5.2 * unit                   // .sp-cell .t{font-size:5.2cqw;line-height:1}
+        let fs = fontSize                     // .sp-cell .t{font-size:5.2cqw;line-height:1}
 
         for c in cells {
             // Text change → cascade (prototype frame(): c.v / c.next / c.t0 / c.sw)
@@ -278,6 +289,21 @@ final class SpecimenRenderer: ClockStyle {
             date.string = attributed(dl, font: Fonts.label(size: max(1, 1.1 * unit)), kern: 0.22)
         }
     }
+
+    /// Width of the widest possible time ("88:88" in its widest digits) at the widest instance
+    /// (wdth 144, wght 900), per point of font size.
+    static let widestText: CGFloat = {
+        let size: CGFloat = 100
+        let font = Fonts.anybody(size: size, weight: 900, width: CGFloat(SpecimenSheet.widths.max() ?? 144))
+        func advance(_ c: Character) -> CGFloat {
+            var u = UniChar(c.unicodeScalars.first!.value), g: CGGlyph = 0, adv = CGSize.zero
+            guard CTFontGetGlyphsForCharacters(font, &u, &g, 1) else { return size * 0.6 }
+            CTFontGetAdvancesForGlyphs(font, .horizontal, &g, &adv, 1)
+            return adv.width
+        }
+        let digit = "0123456789".map(advance).max() ?? size * 0.6
+        return (4 * digit + advance(":")) / size
+    }()
 
     /// Reduce motion: nothing moves between changes, so the view can tick once per second.
     var wantsContinuousFrames: Bool { !context.reduceMotion }

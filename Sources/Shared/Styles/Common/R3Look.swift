@@ -104,6 +104,6 @@ final class R3Chrome {
     }
 
     static func labelText(_ time: ClockTime, showSeconds: Bool) -> String {
-        [showSeconds ? String(time.secondDigits) : nil, time.meridiem].compactMap { $0 }.joined(separator: "   ")
+        [showSeconds ? time.secondsMark : nil, time.meridiem].compactMap { $0 }.joined(separator: "   ")
     }
 }

@@ -52,6 +52,11 @@ final class PosterRenderer: ClockStyle {
     private let accent = CAShapeLayer()
     private let accentMask = CAShapeLayer()
     private let captions = [CATextLayer(), CATextLayer()]
+    /// The caption again in the room colour, masked to the numerals: where a numeral covers the
+    /// caption (square-ish screens) the text knocks out like the rest of the poster.
+    private let captionsOnInk = [CATextLayer(), CATextLayer()]
+    private let captionInk = CALayer()
+    private let captionInkMask = CAShapeLayer()
     private let secondsBar = CALayer()
 
     private var bounds = CGRect.zero, scale: CGFloat = 2
@@ -87,6 +92,11 @@ final class PosterRenderer: ClockStyle {
         root.addSublayer(ink)
         root.addSublayer(accent)
         for c in captions { c.isWrapped = false; root.addSublayer(c) }
+        captionInkMask.fillRule = .evenOdd
+        captionInkMask.fillColor = CGColor(gray: 0, alpha: 1)
+        captionInk.mask = captionInkMask
+        for c in captionsOnInk { c.isWrapped = false; captionInk.addSublayer(c) }
+        root.addSublayer(captionInk)
         root.addSublayer(secondsBar)
         applyPalette()
     }
@@ -103,7 +113,8 @@ final class PosterRenderer: ClockStyle {
             g.frame = CGRect(x: stage.minX + stage.width * CGFloat(i + 1) / 6, y: 0, width: 1 / scale, height: bounds.height)
         }
         for l in [ink, accent, accentMask] { l.frame = bounds; l.contentsScale = scale }
-        for c in captions { c.contentsScale = scale }
+        for c in captions + captionsOnInk { c.contentsScale = scale }
+        for l in [captionInk, captionInkMask] { l.frame = bounds }
         pathCache.removeAll()
         captionKey = ""; captionSpot = ""
     }
@@ -160,6 +171,7 @@ final class PosterRenderer: ClockStyle {
         ink.path = combined
         accent.path = combined
         accentMask.path = discs
+        captionInkMask.path = combined
 
         updateCaptions(time, layout: LN.caption, alpha: previous != nil && hourChange ? Float(e) : 1)
 
@@ -217,44 +229,53 @@ final class PosterRenderer: ClockStyle {
 
     /// Two letter-spaced mono lines in the layout's free corner: weekday and date, then
     /// "QUIET HOURS / NO. hh" with AM/PM and optional seconds.
-    private func updateCaptions(_ time: ClockTime, layout c: PosterLayout.Caption, alpha: Float) {
-        for l in captions where l.opacity != alpha { l.opacity = alpha }
+    private func updateCaptions(_ time: ClockTime, layout preferred: PosterLayout.Caption, alpha: Float) {
+        for l in captions + captionsOnInk where l.opacity != alpha { l.opacity = alpha }
         // The text changes at most once a second; don't format dates every frame.
         let second = Int(time.date.timeIntervalSince1970.rounded(.down))
-        let spot = "\(second)|\(c.x),\(c.y)"
+        let spot = "\(second)|\(preferred.x),\(preferred.y)"
         guard spot != captionSpot else { return }
         captionSpot = spot
         let day = Self.weekdayFormatter.string(from: time.date).uppercased()
         let dm = Calendar.current.dateComponents([.day, .month], from: time.date)
         var l2 = "QUIET HOURS  /  NO. " + PosterLayout.hourText(time)
         if let m = time.meridiem { l2 += " " + m }
-        if context.showSeconds { l2 += "  /  " + String(time.secondDigits) }
+        if context.showSeconds { l2 += "  /  " + time.secondsMark }
         let l1 = day + "  " + String(format: "%02d.%02d", dm.day ?? 1, dm.month ?? 1)
+        let c = preferred
         let key = l1 + "|" + l2 + "|\(c.x),\(c.y)"
         guard key != captionKey else { return }
         captionKey = key
 
-        let stage = Room.stage(bounds), W = stage.width, H = bounds.height
-        let fs = max(9, W * 0.0118)
-        let spaced: (String) -> String = { $0.map(String.init).joined(separator: " ") }
-        let lines = c.atTop ? [l1, l2] : [l1, l2]
-        let lineH = fs * 1.4
-        let x = stage.minX + c.x * W
-        for (i, l) in captions.enumerated() {
-            let s = NSMutableAttributedString(string: spaced(lines[i]), attributes: [
-                .font: Fonts.label(size: fs),
-                .foregroundColor: NSColor(cgColor: palette.label) ?? .gray,
-            ])
-            l.string = s
-            l.alignmentMode = c.align == .left ? .left : (c.align == .right ? .right : .center)
-            let width = W * 0.6
-            let lx = c.align == .left ? x : (c.align == .right ? x - width : x - width / 2)
-            // top: first line at y, second 1.9 em lower; bottom: second line ends at y, first 1.9 em above.
-            let top = c.atTop ? c.y * H + CGFloat(i) * fs * 1.9
-                              : c.y * H - lineH - CGFloat(1 - i) * fs * 1.9
-            l.frame = CGRect(x: lx, y: top, width: width, height: lineH)
+        let lines = [l1, l2]
+        let onInk = palette.roomCenter.copy(alpha: max(0.6, palette.label.alpha)) ?? palette.roomCenter
+        for (layers, color) in [(captions, palette.label), (captionsOnInk, onInk)] {
+            for (i, l) in layers.enumerated() {
+                l.string = NSMutableAttributedString(string: Self.spaced(lines[i]), attributes: [
+                    .font: Fonts.label(size: captionFontSize),
+                    .foregroundColor: NSColor(cgColor: color) ?? .gray,
+                ])
+                l.alignmentMode = c.align == .left ? .left : (c.align == .right ? .right : .center)
+                l.frame = captionFrame(line: i, c)
+            }
         }
     }
+
+    private static func spaced(_ s: String) -> String { s.map(String.init).joined(separator: " ") }
+    private var captionFontSize: CGFloat { max(9, Room.stage(bounds).width * 0.0118) }
+
+    /// Frame of caption line `i` (0 = weekday and date) for corner `c`: 60% of the stage wide,
+    /// aligned on the corner. Top: first line at y, second 1.9 em lower; bottom: second line ends
+    /// at y, first 1.9 em above.
+    private func captionFrame(line i: Int, _ c: PosterLayout.Caption) -> CGRect {
+        let stage = Room.stage(bounds), W = stage.width, H = bounds.height
+        let fs = captionFontSize, lineH = fs * 1.4, width = W * 0.6
+        let x = stage.minX + c.x * W
+        let lx = c.align == .left ? x : (c.align == .right ? x - width : x - width / 2)
+        let top = c.atTop ? c.y * H + CGFloat(i) * fs * 1.9 : c.y * H - lineH - CGFloat(1 - i) * fs * 1.9
+        return CGRect(x: lx, y: top, width: width, height: lineH)
+    }
+
 
     // MARK: Appearance
 
@@ -265,7 +286,7 @@ final class PosterRenderer: ClockStyle {
     }
 
     func stop() {
-        for l in [background, ink, accent, secondsBar] as [CALayer] + grid + captions { l.removeFromSuperlayer() }
+        for l in [background, ink, accent, secondsBar, captionInk] as [CALayer] + grid + captions { l.removeFromSuperlayer() }
         pathCache.removeAll()
     }
 

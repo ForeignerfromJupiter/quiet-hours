@@ -376,12 +376,15 @@ final class LumenRenderer: ClockStyle {
         return float(x) / 4294967295.0;
     }
 
-    // Divergence-free swirl: the curl of a slowly moving stream function.
+    // Divergence-free swirl: the curl of a slowly moving stream function
+    // psi = sin(X) cos(Y), X = q.x + 0.7 t b, Y = 1.3 q.y + t b, scaled by 1 / 1.3.
+    // A true curl has no sinks, so strays circle in slow cells instead of pooling into a smudge
+    // (the earlier field had divergence, and they collected where it was negative).
     static float2 flowField(float2 p, float t) {
         float a = 0.0042, b = 0.00011;
         float2 q = p * a;
-        return float2( cos(q.y * 1.3 + t * b) * sin(q.x + t * b * 0.7),
-                      -sin(q.x * 1.1 - t * b) * cos(q.y * 0.9 + t * b * 1.3));
+        float X = q.x + t * b * 0.7, Y = q.y * 1.3 + t * b;
+        return float2(-sin(X) * sin(Y), -cos(X) * cos(Y) / 1.3);
     }
 
     kernel void step(device Particle *ps [[buffer(0)]], constant Uniforms &u [[buffer(1)]],

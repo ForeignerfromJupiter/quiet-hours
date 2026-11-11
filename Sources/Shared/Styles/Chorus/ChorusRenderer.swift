@@ -191,7 +191,7 @@ final class ChorusRenderer: ClockStyle {
             cl.hub.opacity = Float(max(0.5, v.al))
         }
 
-        let text = [context.showSeconds ? String(time.secondDigits) : nil, time.meridiem].compactMap { $0 }.joined(separator: "   ")
+        let text = R3Chrome.labelText(time, showSeconds: context.showSeconds)
         if text != labelText { labelText = text; updateLabel(force: true) }
     }
 

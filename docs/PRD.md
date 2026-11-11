@@ -30,6 +30,8 @@ The prototype is the source of truth for look and timing; numbers below are take
 
 A split-flap clock. Four cards (HH MM), no colon; in 12h mode a leading zero hides its card entirely.
 
+12h hour changes (9:59 → 10:00, 12:59 → 1:00) never show a wrong time, in Hinge, Module, Echo and Slice: going, the digits change first (the leading one to blank), then the row glides to its new size over 450 ms; appearing, the row glides open around an empty slot first, then the digits change. *(Decided Nov 12, 2026.)*
+
 - Size: each card 21.5% of screen width, 31% tall; 1% gap inside a pair, 3.2% between hours and minutes. With seconds on, main cards shrink to 17.4% x 25% and two small seconds cards sit bottom-right.
 - Card: top and bottom halves with a dark seam between, side pins at the hinge line, a 1 px highlight on the top edge, and a soft drop shadow under the bottom half.
 - Flip: the top leaf (old digit) folds down to 90° in 250 ms, ease-in, while a shade grows on the card below. Then the bottom leaf (new digit) swings from 90° to 0° in 420 ms with an overshoot of about 10% so it lands with a bounce.
@@ -65,7 +67,7 @@ The time drawn in a few thousand points of light. This is the least settled styl
 - At rest: gentle noise keeps every particle shimmering in place; brightness twinkles per particle.
 - Minute change: particles get a random outward impulse, the spring loosens for 750 ms so they drift like a murmuration, then they flow into the new time.
 - Dark: warm white points with additive blending and short motion trails. Light: graphite points on paper.
-- Push further in the native build: depth (particles at different sizes and blur for parallax), a slow drifting field of stray particles around the digits, and particles that curve along a flow field instead of flying straight.
+- Push further in the native build: depth (particles at different sizes and blur for parallax), a slow drifting field of stray particles around the digits, and particles that curve along a flow field instead of flying straight. The flow is divergence-free (the curl of a stream function), so strays never pool into a smudge.
 
 ### Prose
 
@@ -79,6 +81,7 @@ The time as one sentence, set large like a page of a book.
 - Type: Instrument Serif (OFL, bundled), 9.6% of screen width, line height 1.04, left aligned with a 9% inset, balanced lines, max width 80% of the screen.
 - Rewrite: compare old and new sentences word by word and keep the shared start and end untouched. Changing words dissolve letter by letter (380 ms, rising 0.22 em with a slight blur, 14 ms stagger), then the new words rise in letter by letter (800 ms, 30 ms stagger).
 - Caret: a thin bar after the period, blinking on a 1.2 s cycle.
+- Reflow: words that stay glide to their new place over 600 ms; a word that changes line fades out and back in instead of crossing other words. *(Nov 12, 2026; the prototype jumped.)*
 - Caption: the exact time in small mono under a short rule, following the 12/24h and seconds settings.
 - English only in v1. The sentence builder is one pure function so other languages can be added later.
 
@@ -127,7 +130,7 @@ Hours and minutes set enormous and cropped off the page, cutting through each ot
 - Drift: hours drift sideways by up to 0.8% of width (about 2.4 min period), minutes by 0.8% on a different period, and the disc vertically by 2% of height.
 - Minute change: old minutes slide up by one screen height while new minutes rise from below, 1.1 s, exponential in-out.
 - Hour change: over 1.5 s, the old hours exit left, old minutes exit down and the old disc shrinks; new hours enter from the right, new minutes rise from below, and the new disc pops in with overshoot starting a third of the way through. Captions fade across.
-- Details: a faint six-column grid (ink at 5%); two letter-spaced mono caption lines in the layout's free corner (the weekday and date, then "QUIET HOURS / NO. 20" with AM/PM and optional seconds); an accent seconds bar along the bottom edge, 0.4% of height tall, filling across the minute.
+- Details: a faint six-column grid (ink at 5%); two letter-spaced mono caption lines in the layout's free corner (the weekday and date, then "QUIET HOURS / NO. 20" with AM/PM and optional seconds; where a numeral covers a caption, the caption knocks out to the room colour like the rest of the poster); an accent seconds bar along the bottom edge, 0.4% of height tall, filling across the minute.
 
 ### Module
 
@@ -186,6 +189,7 @@ The time set twelve times as a type specimen sheet.
 - Labels: each cell shows its live axis values in small mono ("WDTH 84 · WGHT 531").
 - Seconds: one cell at a time turns accent, moving through all twelve across the minute.
 - Change: cells update in reading order, 75 ms apart; each fades and rises out, then fades and rises in over 460 ms.
+- Fit: the sheet lays out in a centred stage at most 16:9; numerals are 5.2% of the stage width or smaller, so the widest cell (width 144, weight 900) stays inside its padding and every cell fits its label.
 
 ### Board
 
@@ -195,7 +199,8 @@ A Swiss timetable of world time.
 - Seconds bar: an accent bar under the header fills across the minute.
 - Rows: six cities (London, New York, San Francisco, Berlin, Tokyo, Sydney, with Dubai as a substitute if one matches the local zone), each with city name, offset from local ("−5h 30m"), day relative to local (TODAY, TOMORROW, YESTERDAY) and time.
 - Working hours: a small dot before each city turns accent when it's between 09:00 and 18:00 there.
-- Change: the header and then each row, 90 ms apart, scramble their digits through random numbers and settle left to right (70 ms per character).
+- Change: the header and then each row, 90 ms apart, scramble their digits through random numbers and settle left to right (70 ms per character). Scrambled digits stay plausible for their position (minute tens 0–5, hour tens 0–1 in 12h, 0–2 in 24h).
+- Rows share the height below the header up to 7.5% of the width each; on taller screens the board centres.
 - Time zones come from the system time zone database, so daylight saving is always correct.
 
 ## Appearance and options
@@ -221,7 +226,7 @@ Every style defaults to **Auto**: it shows its dark finish when macOS is in dark
 | Style | One saver per style; chosen in the Screen Saver grid, not in Options | — |
 | Finish | Auto, or the style's dark or light finish | Auto |
 | Time format | System, 12-hour, 24-hour | System (from the user's locale settings) |
-| Seconds | On, off | Off |
+| Seconds | On, off | Off (labels show seconds as ":05", the tail of the time) |
 | Pure black | On, off: the dark finish's room is #000 throughout (OLED pixels off, no mini-LED glow) | On |
 | Displays | Main display only, all displays | All displays |
 | Dim | 0 to 60% | 0% |

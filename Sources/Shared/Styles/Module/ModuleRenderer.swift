@@ -74,6 +74,9 @@ final class ModuleRenderer: ClockStyle {
     private var bounds = CGRect.zero, scale: CGFloat = 2
     private var unit: CGFloat = 0
     private var visibleKey = ""
+    /// 12h: whether the leading digit is showing, and its slot opening or closing.
+    private var leadShown: Bool?
+    private var leadChange: LeadingSlotChange?
     private var litDashes = -1
     private var animating = false
     private var speed: Double { max(context.timeScale, 0.01) }
@@ -108,6 +111,17 @@ final class ModuleRenderer: ClockStyle {
 
     func render(time: ClockTime, frameTime t: CFTimeInterval) {
         let digits = time.digits
+        let at = t / speed
+        let lead = digits[0] != nil
+        if lead != leadShown {
+            if leadShown != nil, slots[0].isSet, !context.reduceMotion {
+                // Longest morph: the bottom-right tile starts 6 staggers late.
+                leadChange = LeadingSlotChange(start: at, opening: lead, settle: Self.morph + 6 * Self.stagger)
+            }
+            leadShown = lead
+        }
+        // While the leading slot opens, the digits wait for it.
+        let delay = leadChange.map { max(0, $0.changeStart - at) * speed } ?? 0
         for (i, s) in slots.enumerated() {
             let ch = digits[i] ?? " "
             guard !s.isSet || ch != s.ch else { continue }
@@ -117,18 +131,21 @@ final class ModuleRenderer: ClockStyle {
                 s.anims[n].from = now
                 s.anims[n].to = target[n]
                 let (r, c) = (n / 3, n % 3)
-                s.anims[n].start = (!s.isSet || context.reduceMotion) ? t - 10 : t + Double(r + c) * Self.stagger * speed
+                s.anims[n].start = (!s.isSet || context.reduceMotion) ? t - 10 : t + delay + Double(r + c) * Self.stagger * speed
             }
             s.ch = ch
             s.isSet = true
         }
 
-        let visible = slots.indices.filter { slots[$0].ch != " " }
-        let key = visible.map(String.init).joined()
-        if key != visibleKey { visibleKey = key; place(visible) }
+        var lead0: CGFloat = lead ? 1 : 0
+        if let change = leadChange {
+            if change.isDone(at: at) { leadChange = nil } else { lead0 = CGFloat(change.presence(at: at)) }
+        }
+        let key = "\(lead0)"
+        if key != visibleKey { visibleKey = key; place(leading: lead0) }
 
-        animating = false
-        for s in slots where s.ch != " " {   // like the prototype, a blank slot leaves the row at once
+        animating = leadChange != nil
+        for (i, s) in slots.enumerated() where i > 0 || lead0 > 0 {
             for n in 0..<15 {
                 let a = s.anims[n]
                 let tile = current(a, t)
@@ -165,41 +182,30 @@ final class ModuleRenderer: ClockStyle {
         layer.fillColor = palette.blend(tile.curve)
     }
 
-    /// Lays out the visible digits: 3 tiles each, 0.7 between, 2.2 for the colon.
-    private func place(_ visible: [Int]) {
+    /// Lays out [H]H:MM: 3 tiles a digit, 0.7 between digits, 2.2 for the colon. `p` is how open
+    /// the leading slot is (0…1); the row and its unit follow it, so the row glides.
+    private func place(leading p: CGFloat) {
         let W = bounds.width, H = bounds.height
-        let n = CGFloat(visible.count)
-        let units = n * 3 + max(n - 2, 0) * 0.7 + 2.2
+        let units = 3.7 * p + 11.9      // p = 1: 4 × 3 + 2 × 0.7 + 2.2; p = 0: 3 × 3 + 0.7 + 2.2
         unit = min(W * 0.82 / units, H * 0.6 / 5)
         let u = unit, gap = u * 0.05
-        var x = (W - units * u) / 2
+        let left = (W - units * u) / 2
         let y = (H - 5 * u) / 2
-
+        let lefts = [left - (1 - p) * 3.7 * u, left + p * 3.7 * u,
+                     left + p * 3.7 * u + 5.2 * u, left + p * 3.7 * u + 8.9 * u]
         for (i, s) in slots.enumerated() {
-            let shown = visible.contains(i)
             for (n, l) in s.layers.enumerated() {
-                l.isHidden = !shown
-                l.frame = CGRect(x: x + CGFloat(n % 3) * u, y: y + CGFloat(n / 3) * u, width: u, height: u)
+                l.isHidden = i == 0 && p == 0
+                l.frame = CGRect(x: lefts[i] + CGFloat(n % 3) * u, y: y + CGFloat(n / 3) * u, width: u, height: u)
             }
             s.drawn = s.drawn.map { _ in .init(scale: -1, radii: []) }
-            guard shown, let j = visible.firstIndex(of: i) else { continue }
-            x += 3 * u
-            if j < visible.count - 1 {
-                if i == 1 {
-                    let cx = x + 1.1 * u, r = (u - gap) * 0.42
-                    for (k, c) in colon.enumerated() {
-                        c.frame = CGRect(x: cx - r, y: y + CGFloat([1.5, 3.5][k]) * u - r, width: 2 * r, height: 2 * r)
-                        c.cornerRadius = r
-                    }
-                    x += 2.2 * u
-                } else {
-                    x += 0.7 * u
-                }
-            }
+        }
+        let cx = lefts[1] + 3 * u + 1.1 * u, r = (u - gap) * 0.42
+        for (k, c) in colon.enumerated() {
+            c.frame = CGRect(x: cx - r, y: y + CGFloat([1.5, 3.5][k]) * u - r, width: 2 * r, height: 2 * r)
+            c.cornerRadius = r
         }
 
-        // Faint dot grid aligned to the tiles (2 pt dots at 7% ink).
-        let left = (W - units * u) / 2
         let gx0 = left.truncatingRemainder(dividingBy: u) - u, gy0 = y - 2 * u
         dot.frame = CGRect(x: gx0 - 1, y: gy0 - 1, width: 2, height: 2)
         gridX.instanceCount = Int(ceil((W - gx0) / u)) + 1

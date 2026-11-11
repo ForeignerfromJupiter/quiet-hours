@@ -83,4 +83,13 @@ final class TimeFormatTests: XCTestCase {
         XCTAssertFalse(TimeFormat.uses24Hour(.system, locale: us, force24: nil, force12: nil))
         XCTAssertTrue(TimeFormat.uses24Hour(.system, locale: de, force24: false, force12: nil))
     }
+
+    func testSecondsReadAsTheTailOfTheTime() {
+        let t12 = ClockTime(hour24: 13, minute: 2, second: 5, uses24Hour: false)
+        XCTAssertEqual(t12.secondsMark, ":05")
+        XCTAssertEqual(R3Chrome.labelText(t12, showSeconds: true), ":05   PM")
+        XCTAssertEqual(R3Chrome.labelText(t12, showSeconds: false), "PM")
+        let t24 = ClockTime(hour24: 13, minute: 2, second: 59, uses24Hour: true)
+        XCTAssertEqual(R3Chrome.labelText(t24, showSeconds: true), ":59")
+    }
 }

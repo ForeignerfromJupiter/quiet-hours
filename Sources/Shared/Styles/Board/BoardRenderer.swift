@@ -119,6 +119,8 @@ final class BoardRenderer: ClockStyle {
         static let rowLabelSize: CGFloat = 1.05, rowLabelTrack: CGFloat = 0.16
         /// Height cap in u, so six rows always fit (ultrawides): rows keep ≥ 5u each.
         static let minHeightUnits: CGFloat = 54
+        /// Row pitch cap: on tall screens the rows stop spreading and the board centres instead.
+        static let maxRow: CGFloat = 7.5
     }
 
     private static let barEase = 0.3
@@ -198,8 +200,14 @@ final class BoardRenderer: ClockStyle {
         cityFace = BoardFace(size: M.citySize * u, weight: 620, width: 100)
         timeFace = BoardFace(size: M.timeSize * u, weight: 760, width: 82)
 
+        // Rows share the height below the header, up to `maxRow` each; any height left over goes
+        // above and below the whole board so it sits centred.
+        let headerBlock = (M.bigSize * M.bigLine + M.headPadBottom + M.barHeight + M.barGap) * u
+        let freeRowH = (H - M.padBottom * u - M.padTop * u - headerBlock) / CGFloat(BoardModel.rowCount)
+        let spare = max(0, freeRowH - M.maxRow * u) * CGFloat(BoardModel.rowCount)
+
         // Header: .bd-big line box, meta block bottom-aligned with it on the right.
-        let top = M.padTop * u
+        let top = M.padTop * u + spare / 2
         let bigLine = M.bigSize * M.bigLine * u
         header.origin = CGPoint(x: side, y: bigFace?.baseline(top: top, lineHeight: bigLine) ?? 0)
         let headBottom = top + bigLine
@@ -219,7 +227,7 @@ final class BoardRenderer: ClockStyle {
 
         // Rows: six equal tracks down to the bottom padding, ruled underneath, items centred.
         let rowsTop = barY + (M.barHeight + M.barGap) * u
-        let rowH = (H - M.padBottom * u - rowsTop) / CGFloat(BoardModel.rowCount)
+        let rowH = (H - M.padBottom * u - spare / 2 - rowsTop) / CGFloat(BoardModel.rowCount)
         let rule: CGFloat = 1
         rowCenters = (0..<BoardModel.rowCount).map { rowsTop + CGFloat($0) * rowH + (rowH - rule) / 2 }
         let labelFont = Fonts.label(size: M.rowLabelSize * u)

@@ -48,7 +48,7 @@ final class HingeCard {
     private var glyphs: HingeGlyphs?
     private(set) var value: Character?
     private var topChar: Character?, bottomChar: Character?, frontChar: Character?, backChar: Character?
-    private var flip: (start: CFTimeInterval, to: Character)?
+    private var flip: (start: CFTimeInterval, to: Character?)?
     private let timeScale: Double
     private let freezeAt: Double?
 
@@ -214,15 +214,15 @@ final class HingeCard {
 
     // MARK: Values and flipping
 
-    /// Shows `v` (nil hides the card). Animates from the current digit when `animate` is true.
+    /// Shows `v` (nil is a blank face). Animates from the current face when `animate` is true; a
+    /// flip whose `now` lies in the future holds the old face until then. Visibility is the
+    /// caller's (the 12h leading card fades in and out around its flips).
     func set(_ v: Character?, now: CFTimeInterval, animate: Bool) {
         guard v != value else { return }
         let old = value
         value = v
-        container.isHidden = (v == nil)
-        guard let v else { endFlip(); return }
 
-        if let old, animate {
+        if animate {
             // Same assignment as the prototype's set(): top shows new, bottom shows old until the
             // back leaf lands; the front leaf carries the old digit down, the back leaf brings the new one.
             topChar = v; bottomChar = old; frontChar = old; backChar = v

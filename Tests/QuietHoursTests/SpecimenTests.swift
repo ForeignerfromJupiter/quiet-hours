@@ -112,7 +112,7 @@ final class SpecimenTests: XCTestCase {
         cal.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
         let date = try XCTUnwrap(cal.date(from: DateComponents(year: 2026, month: 11, day: 8, hour: 22, minute: 9, second: 5)))
         let t12 = ClockTime(date: date, calendar: cal, uses24Hour: false)
-        XCTAssertEqual(SpecimenSheet.dateLine(t12, showSeconds: true, calendar: cal), "SUNDAY 08 NOV PM 05")
+        XCTAssertEqual(SpecimenSheet.dateLine(t12, showSeconds: true, calendar: cal), "SUNDAY 08 NOV PM :05")
         let t24 = ClockTime(date: date, calendar: cal, uses24Hour: true)
         XCTAssertEqual(SpecimenSheet.dateLine(t24, showSeconds: false, calendar: cal), "SUNDAY 08 NOV")
     }

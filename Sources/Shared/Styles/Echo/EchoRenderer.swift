@@ -24,9 +24,17 @@ enum EchoModel {
 
     /// Numeral size: up to 52% of the height or 80% of the width for the visible slots.
     static func numeralSize(visible: [Character], in size: CGSize) -> CGFloat {
-        let units = visible.reduce(0) { $0 + width(of: $1) }
-        return min(size.height * 0.52, size.width * 0.8 / max(units, 0.01))
+        numeralSize(units: visible.reduce(0) { $0 + width(of: $1) }, in: size)
     }
+
+    /// The same for a row `units` wide (in units of S), which is fractional during a glide.
+    static func numeralSize(units: CGFloat, in size: CGSize) -> CGFloat {
+        min(size.height * 0.52, size.width * 0.8 / max(units, 0.01))
+    }
+
+    /// The longest minute change: the back layer of the fourth changing slot (12:59 → 1:00
+    /// changes four), in seconds.
+    static let longestChange = Double(layers - 1) * layerDelay + 3 * slotDelay + swapDuration
 
     /// Direction of the echo offset (radians, y down): 135° at the top of the minute, turning
     /// once a minute (`PI*.75 - ((s+ms/1000)/60)*TAU`). Reduced motion holds it at 45°.
@@ -100,7 +108,12 @@ final class EchoRenderer: ClockStyle {
     private let slots = (0..<5).map { _ in Slot() }
 
     private var bounds = CGRect.zero, scale: CGFloat = 2
-    private var size: CGFloat = 0           // numeral size S
+    private var size: CGFloat = 0           // numeral size the glyph paths are built at
+    private var drawSize: CGFloat = 0       // numeral size on screen (differs during a glide)
+    private var glyphScale: CGFloat = 1
+    /// 12h: whether the leading digit is showing, and its slot opening or closing.
+    private var leadShown: Bool?
+    private var leadChange: LeadingSlotChange?
     private var layoutKey = ""
     private var paths: [Character: CGPath] = [:]
     private var pathGeneration = 0          // bumps when the cache is dropped (size change)
@@ -150,21 +163,34 @@ final class EchoRenderer: ClockStyle {
         let reduce = context.reduceMotion
         let chars = EchoModel.slots(time)
 
+        let lead = chars[0] != " "
+        if lead != leadShown {
+            if leadShown != nil, slots[0].isSet, !reduce {
+                leadChange = LeadingSlotChange(start: T, opening: lead, settle: EchoModel.longestChange)
+            }
+            leadShown = lead
+        }
+        // While the leading slot opens, the swaps wait for it.
+        let delay = leadChange.map { max(0, $0.changeStart - T) } ?? 0
         let orders = EchoModel.changeOrders(from: slots.map(\.ch), to: chars)
         for (i, s) in slots.enumerated() where !s.isSet || chars[i] != s.ch {
             if s.isSet && !reduce, let order = orders[i] {
                 for (L, c) in s.cells.enumerated() {
                     c.oldCh = s.ch
-                    c.start = EchoModel.swapStart(now: T, layer: L, order: order)
+                    c.start = EchoModel.swapStart(now: T + delay, layer: L, order: order)
                 }
             }
             s.ch = chars[i]
             s.isSet = true
         }
 
-        let key = chars.map(String.init).joined()
-        if key != layoutKey { layoutKey = key; place() }
-        let S = size
+        var p: CGFloat = lead ? 1 : 0
+        if let change = leadChange {
+            if change.isDone(at: T) { leadChange = nil } else { p = CGFloat(change.presence(at: T)) }
+        }
+        let key = chars.map(String.init).joined() + "|\(p)"
+        if key != layoutKey { layoutKey = key; place(leading: p) }
+        let S = drawSize
 
         // Orbit: the stack is centred, so the front layer moves too (`- ox*(NL-1)/2`).
         let a = EchoModel.orbitAngle(second: time.second, millisecond: time.millisecond, reduceMotion: reduce)
@@ -216,27 +242,44 @@ final class EchoRenderer: ClockStyle {
 
     // MARK: Layout
 
-    /// Sizes the numerals for the slots on show (the 12h leading blank drops out and the rest
-    /// re-centre) and finds each slot's centre at rest (`xs`, `cy`).
-    private func place() {
+    /// Sizes the numerals for the slots on show and finds each slot's centre at rest. `p` is how
+    /// open the 12h leading slot is (0…1): it narrows as it closes and the rest re-centre, so the
+    /// row glides. During a glide the paths stay at the larger size and the layers scale.
+    private func place(leading p: CGFloat) {
         let W = bounds.width, H = bounds.height
-        let visible = slots.filter { $0.ch != " " }
-        let S = EchoModel.numeralSize(visible: visible.map(\.ch), in: bounds.size)
-        if abs(S - size) > 0.25 { size = S; dropPaths() }
-        let units = visible.reduce(0) { $0 + EchoModel.width(of: $1.ch) }
+        let widths = slots.enumerated().map { i, s in
+            i == 0 ? p * EchoModel.width(of: "0") : EchoModel.width(of: s.ch)
+        }
+        let units = widths.reduce(0, +)
+        let S = EchoModel.numeralSize(units: units, in: bounds.size)
+        var pathSize = S
+        if leadChange != nil {
+            let rest = units - widths[0]
+            pathSize = max(EchoModel.numeralSize(units: rest, in: bounds.size),
+                           EchoModel.numeralSize(units: rest + EchoModel.width(of: "0"), in: bounds.size))
+        }
+        if abs(pathSize - size) > 0.25 { size = pathSize; dropPaths() }
+        drawSize = S
+        let k = size > 0 ? S / size : 1
+        if k != glyphScale {
+            glyphScale = k
+            let t = k == 1 ? CATransform3DIdentity : CATransform3DMakeScale(k, k, 1)
+            for s in slots { for c in s.cells { c.cur.transform = t; c.old.transform = t } }
+        }
         var x = (W - units * S) / 2
         let cy = H / 2 + S * 0.03
-        for s in slots {
-            s.visible = s.ch != " "
+        for (i, s) in slots.enumerated() {
+            s.visible = s.ch != " " || (i == 0 && p > 0)
             if s.visible {
-                let w = EchoModel.width(of: s.ch) * S
-                s.center = CGPoint(x: x + w / 2, y: cy)
+                let w = widths[i] * S
+                // A closing leading slot keeps its glyph width and slides out to the left.
+                s.center = CGPoint(x: i == 0 ? x + (p - 0.5) * EchoModel.width(of: "0") * S : x + w / 2, y: cy)
                 x += w
             } else {
                 for c in s.cells { c.oldCh = nil; for l in [c.cur, c.old] where !l.isHidden { l.isHidden = true } }
             }
         }
-        let line = max(1, S * EchoModel.stroke)
+        let line = max(1, size * EchoModel.stroke)
         for s in slots { for c in s.cells.dropFirst() { c.cur.lineWidth = line; c.old.lineWidth = line } }
     }
 

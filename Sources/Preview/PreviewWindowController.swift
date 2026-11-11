@@ -107,12 +107,6 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         // Debug launch arguments, e.g. `-QHTimeScale 10 -QHFlipIn 2`:
         // slow flips down and land the next minute change N seconds after launch.
         let args = UserDefaults.standard
-        // `-QHStyle chorus` pins this window's style (the saved setting is shared by every
-        // running Preview, and the view re-reads it on each restart).
-        if let id = args.string(forKey: "QHStyle").flatMap(StyleID.init(rawValue:)) {
-            saverView.styleOverride = id
-            saverView.restart()
-        }
         if args.double(forKey: "QHTimeScale") > 0 {
             saverView.timeScale = args.double(forKey: "QHTimeScale")
             slowCheck.state = saverView.timeScale > 1 ? .on : .off
@@ -129,19 +123,23 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
         }
         // `-QHBare 1240x800`: borderless window of exactly that content size, no controls
         // (used by scripts/make-thumbnails.sh to capture the real renderer).
-        if let bare = args.string(forKey: "QHBare")?.split(separator: "x").compactMap({ Double($0) }), bare.count == 2, let window {
+        let bare = args.string(forKey: "QHBare")?.split(separator: "x").compactMap({ Double($0) })
+        if let bare, bare.count == 2, let window {
             bar.isHidden = true
             window.styleMask = [.borderless]
             window.hasShadow = false
             window.setContentSize(NSSize(width: bare[0], height: bare[1]))
             window.center()
         }
-        // `-QHScreen 1` opens the window on that display (0 = built-in on a laptop).
+        // `-QHScreen 1` opens the window on that display (0 = built-in on a laptop); a bare window
+        // keeps its size.
         if args.object(forKey: "QHScreen") != nil, let window {
             let i = args.integer(forKey: "QHScreen")
             if NSScreen.screens.indices.contains(i) {
                 let vf = NSScreen.screens[i].visibleFrame
-                window.setFrame(NSRect(x: vf.midX - 640, y: vf.midY - 425, width: 1280, height: 850).intersection(vf), display: true)
+                let size = bare?.count == 2 ? window.frame.size : NSSize(width: 1280, height: 850)
+                window.setFrame(NSRect(x: vf.midX - size.width / 2, y: vf.midY - size.height / 2,
+                                       width: size.width, height: size.height).intersection(vf), display: true)
             }
         }
         // Soak testing (scripts/soak-test.sh):
@@ -170,6 +168,13 @@ final class PreviewWindowController: NSWindowController, NSWindowDelegate {
             let c = Calendar.current.dateComponents([.second, .nanosecond], from: Date())
             let intoMinute = Double(c.second ?? 0) + Double(c.nanosecond ?? 0) / 1e9
             saverView.timeOffset = 60 - intoMinute - args.double(forKey: "QHFlipIn")
+        }
+        // `-QHStyle chorus` pins this window's style (the saved setting is shared by every
+        // running Preview, and the view re-reads it on each restart). Applied last: the style is
+        // built with the time scale and freeze set above.
+        if let id = args.string(forKey: "QHStyle").flatMap(StyleID.init(rawValue:)) {
+            saverView.styleOverride = id
+            if saverView.isAnimating { saverView.restart() }
         }
         if !saverView.isAnimating { saverView.startAnimation() }
         syncControls()
