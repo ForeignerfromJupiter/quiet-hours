@@ -81,6 +81,8 @@ Sources/Shared/             compiled into both the saver and the preview app
                             (shaders compiled at runtime from a string: no Metal toolchain needed)
   Styles/Prose/             ProseSentence (pure sentence builder + word diff), ProseLayout
                             (Core Text shaping, balanced lines), ProseRenderer (one layer per glyph)
+  Styles/Common/LeadingSlotChange.swift  12h hour change (9:59 → 10:00, 12:59 → 1:00) timeline:
+                            Hinge, Module, Echo and Slice never show a wrong time, the row glides
   Styles/Common/R3Look.swift  shared palette, expo/back easings, background + corner label for
                             Slice, Poster and Module
   Styles/Slice/             SliceRenderer: cached digit images (ink + accent) shown through 14
@@ -121,7 +123,7 @@ Tests/QuietHoursTests/      unit tests, hosted by the preview app (@testable imp
   backgrounds use `Room.frame(bounds)` (oversized by the shift margin) so the edge never shows.
   New styles: build the room with `Room.colors(...)` and `Room.frame(...)`.
 - **Ultrawide screens**: compositions placed by screen-width fractions (Poster, Prose, Board) lay
-  out inside `Room.stage(bounds)`, a centred area at most 16:9; backgrounds still fill the screen.
+  out inside `Room.stage(bounds)` (Specimen too), a centred area at most 16:9; backgrounds still fill the screen.
   Check new styles at 32:9 and 21:9 (Preview `-QHBare 1600x450`, `-QHBare 1720x720`).
 - **Options panel** (`OptionsSheet`): live preview via `QuietHoursView.overrideSettings`; Displays
   (main only → other screens stay black and idle) and Dim (overlay above the clock) are view-level.
